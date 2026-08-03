@@ -1,0 +1,49 @@
+# Root-level ignores for the jiu-complete-package monorepo.
+# Most app-specific ignores live in jiu-app/.gitignore.
+
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+coverage/
+
+# next.js build output (mirrors jiu-app/.gitignore at the root)
+.next/
+out/
+.open-next/
+dist/
+.wrangler/
+
+# production
+build/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+.dev.vars
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Local reference material — keep on disk, out of git
+doc/
