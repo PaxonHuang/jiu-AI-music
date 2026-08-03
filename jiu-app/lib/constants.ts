@@ -204,7 +204,7 @@ export interface AcademyLevel {
   zone: string;
   companionTip: string;
   game: AcademyGameKey;
-  rewardType: '绒羽';
+  rewardType: FragmentType;
   position: { x: number; y: number };
 }
 
@@ -274,7 +274,7 @@ export const LEVELS: AcademyLevel[] = [
     zone: '风车山坡',
     companionTip: '把手放在胸口，音乐也有像心跳一样稳定的拍子。',
     game: 'heartbeat-drummer',
-    rewardType: '绒羽',
+    rewardType: '怪羽',
     position: { x: 69, y: 61 },
   },
   {
@@ -289,7 +289,7 @@ export const LEVELS: AcademyLevel[] = [
     zone: '节拍跑道',
     companionTip: '四分音符像走路，八分音符像小跑，两步当一步。',
     game: 'note-race',
-    rewardType: '绒羽',
+    rewardType: '怪羽',
     position: { x: 31, y: 52 },
   },
   {
@@ -304,7 +304,7 @@ export const LEVELS: AcademyLevel[] = [
     zone: '木桥工坊',
     companionTip: '把不同长度的木板拼在一起，就能搭出一座节奏桥啦！',
     game: 'rhythm-puzzle',
-    rewardType: '绒羽',
+    rewardType: '怪羽',
     position: { x: 69, y: 43 },
   },
   {
@@ -319,7 +319,7 @@ export const LEVELS: AcademyLevel[] = [
     zone: '山林乐园',
     companionTip: '每一个音符都有自己的颜色和性格，我们来认识它们吧。',
     game: 'note-town',
-    rewardType: '绒羽',
+    rewardType: '暗羽',
     position: { x: 31, y: 32 },
   },
   {
@@ -334,7 +334,7 @@ export const LEVELS: AcademyLevel[] = [
     zone: '云端高塔',
     companionTip: '只要唱得准，小人就能爬得高！慢慢唱，不着急。',
     game: 'pitch-tower',
-    rewardType: '绒羽',
+    rewardType: '暗羽',
     position: { x: 69, y: 23 },
   },
   {
@@ -349,7 +349,7 @@ export const LEVELS: AcademyLevel[] = [
     zone: '星光树屋',
     companionTip: '五线谱像一栋五层楼，每个音符都有自己固定的房间。',
     game: 'note-home',
-    rewardType: '绒羽',
+    rewardType: '暗羽',
     position: { x: 31, y: 14 },
   },
 ];

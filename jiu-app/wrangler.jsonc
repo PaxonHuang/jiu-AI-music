@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "jiu-bird-collection",
+  "name": "jiu-music-app",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-30",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -8,10 +8,16 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "r2_buckets": [
+    {
+      "binding": "MUSIC_BUCKET",
+      "bucket_name": "jiu-music-audio"
+    }
+  ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "jiu-bird-collection"
+      "service": "jiu-music-app"
     }
   ]
 }
