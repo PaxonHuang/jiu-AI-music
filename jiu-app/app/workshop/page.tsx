@@ -4,7 +4,17 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import { BirdPortrait } from '@/components/collection/BirdPortrait';
-import { BIRDS } from '@/lib/constants';
+import {
+  BIRDS,
+  GENRE_IDS,
+  GENRE_LABELS,
+  INSTRUMENT_IDS,
+  INSTRUMENT_LABELS,
+  MOOD_IDS,
+  MOOD_LABELS,
+  VOICE_LABELS,
+  type InstrumentId,
+} from '@/lib/constants';
 import { useGlobalStore } from '@/stores/globalStore';
 
 type LyricsMode = 'ai' | 'write' | 'continue';
@@ -20,47 +30,31 @@ interface Draft {
   genre: string;
   mood: string;
   voice: Voice;
-  instruments: string[];
+  instruments: InstrumentId[];
 }
 
-const GENRES = [
-  { id: 'pop', label: '流行', icon: '🎤' },
-  { id: 'rnb', label: '节奏蓝调', icon: '🎶' },
-  { id: 'hiphop', label: '嘻哈', icon: '🎧' },
-  { id: 'rap', label: '说唱', icon: '🧢' },
-  { id: 'rock', label: '摇滚', icon: '🎸' },
-  { id: 'jazz', label: '爵士', icon: '🎷' },
-  { id: 'country', label: '乡村', icon: '🌾' },
-  { id: 'classic', label: '古典', icon: '🎼' },
-] as const;
-
-const MOODS = [
-  { id: 'happy', label: '开心', icon: '😊' },
-  { id: 'sad', label: '难过', icon: '🌧️' },
-  { id: 'excited', label: '兴奋', icon: '⚡' },
-  { id: 'relaxed', label: '放松', icon: '🌿' },
-  { id: 'romantic', label: '浪漫', icon: '🌹' },
-  { id: 'powerful', label: '有力量', icon: '💪' },
-  { id: 'mysterious', label: '神秘', icon: '🔮' },
-  { id: 'nostalgic', label: '怀念', icon: '🍂' },
-  { id: 'playful', label: '俏皮', icon: '🫧' },
-  { id: 'dreamy', label: '梦幻', icon: '🌙' },
-] as const;
-
-const INSTRUMENTS = [
-  { id: 'piano', label: '钢琴', icon: '🎹' },
-  { id: 'guitar', label: '吉他', icon: '🎸' },
-  { id: 'drums', label: '鼓', icon: '🥁' },
-  { id: 'violin', label: '小提琴', icon: '🎻' },
-  { id: 'cello', label: '大提琴', icon: '🎻' },
-  { id: 'flute', label: '长笛', icon: '🪈' },
-  { id: 'synth', label: '合成器', icon: '🎛️' },
-] as const;
+const GENRE_ICONS: Record<string, string> = {
+  pop: '🎤', rnb: '🎶', hiphop: '🎧', rap: '🧢',
+  rock: '🎸', jazz: '🎷', country: '🌾', classic: '🎼',
+};
+const MOOD_ICONS: Record<string, string> = {
+  happy: '😊', sad: '🌧️', excited: '⚡', relaxed: '🌿',
+  romantic: '🌹', powerful: '💪', mysterious: '🔮',
+  nostalgic: '🍂', playful: '🫧', dreamy: '🌙',
+};
+const INSTRUMENT_ICONS: Record<InstrumentId, string> = {
+  piano: '🎹', guitar: '🎸', drums: '🥁',
+  violin: '🎻', cello: '🎻', flute: '🪈',
+};
+const VOICE_ICONS: Record<Voice, string> = { female: '🐦', male: '🐤' };
 
 const IDEAS = ['我的小猫', '快乐暑假', '梦里的星球', '送给妈妈'];
-const GENERATION_STEPS = ['正在读懂你的故事', '正在邀请乐器朋友', '小鸟正在最后排练'];
+const GENERATION_STEPS = ['正在分析你的故事', '正在邀请乐器朋友', '正在合成最终旋律'];
 const DRAFT_KEY = 'jiu_workshop_draft';
 const WORKS_KEY = 'jiu_workshop_works';
+const POLL_INTERVAL_MS = 3000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+const FALLBACK_AUDIO_SRC = '/audio/sample-song.mp3';
 
 const DEFAULT_DRAFT: Draft = {
   title: '',
@@ -71,8 +65,39 @@ const DEFAULT_DRAFT: Draft = {
   genre: 'pop',
   mood: 'happy',
   voice: 'female',
-  instruments: ['piano'],
+  instruments: [],
 };
+
+interface TiredDetail {
+  code: number;
+  message: string;
+  action: string;
+}
+
+class BirdTiredError extends Error {
+  readonly detail: TiredDetail;
+  constructor(detail: TiredDetail) {
+    super(`bird_tired ${detail.code} ${detail.action}: ${detail.message}`);
+    this.name = 'BirdTiredError';
+    this.detail = detail;
+  }
+}
+
+function isInstrumentId(value: string): value is InstrumentId {
+  return (INSTRUMENT_IDS as readonly string[]).includes(value);
+}
+
+function sanitizeDraft(input: Partial<Draft> | null | undefined): Draft {
+  if (!input) return DEFAULT_DRAFT;
+  const instruments = Array.isArray(input.instruments)
+    ? input.instruments.filter(isInstrumentId)
+    : [];
+  return {
+    ...DEFAULT_DRAFT,
+    ...input,
+    instruments,
+  };
+}
 
 function buildLyrics(theme: string) {
   const subject = theme.trim() || '一场闪闪发光的旅行';
@@ -86,8 +111,8 @@ function formatTime(seconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
 }
 
-function labelFor<T extends readonly { id: string; label: string }[]>(items: T, id: string) {
-  return items.find((item) => item.id === id)?.label ?? '';
+function labelFor(map: Record<string, string>, id: string) {
+  return map[id] ?? '';
 }
 
 export default function WorkshopPage() {
@@ -102,6 +127,10 @@ export default function WorkshopPage() {
   const [generateStep, setGenerateStep] = useState(0);
   const [generated, setGenerated] = useState(false);
   const [resultTitle, setResultTitle] = useState('');
+  const [resultTaskId, setResultTaskId] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [predictedWaitTime, setPredictedWaitTime] = useState<number | null>(null);
+  const [tiredError, setTiredError] = useState<TiredDetail | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -111,12 +140,13 @@ export default function WorkshopPage() {
   const [published, setPublished] = useState(false);
   const [toast, setToast] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const taskIdRef = useRef<string | null>(null);
   const generationRef = useRef(0);
 
   useEffect(() => {
     try {
       const savedDraft = localStorage.getItem(DRAFT_KEY);
-      if (savedDraft) setDraft({ ...DEFAULT_DRAFT, ...JSON.parse(savedDraft) });
+      if (savedDraft) setDraft(sanitizeDraft(JSON.parse(savedDraft) as Partial<Draft>));
     } catch {
       // A fresh draft is safe if local storage is unavailable or malformed.
     } finally {
@@ -141,7 +171,7 @@ export default function WorkshopPage() {
   }, [toast]);
 
   const isReady = useMemo(() => {
-    if (draft.instrumental) return true;
+    if (draft.instrumental) return Boolean(draft.idea.trim() || true); // instrumental always ready (text is required server-side)
     if (draft.lyricsMode === 'ai') return Boolean(draft.idea.trim() || draft.lyrics.trim());
     return Boolean(draft.lyrics.trim());
   }, [draft]);
@@ -175,7 +205,7 @@ export default function WorkshopPage() {
     setToast('小鸟接着写了四句');
   };
 
-  const toggleInstrument = (id: string) => {
+  const toggleInstrument = (id: InstrumentId) => {
     setDraft((current) => {
       if (current.instruments.includes(id)) {
         return { ...current, instruments: current.instruments.filter((item) => item !== id) };
@@ -188,39 +218,156 @@ export default function WorkshopPage() {
     });
   };
 
+  const buildPayload = (d: Draft) => {
+    const genre = labelFor(GENRE_LABELS, d.genre) || undefined;
+    const mood = labelFor(MOOD_LABELS, d.mood) || undefined;
+    const instrumentLabels = d.instruments
+      .map((id) => INSTRUMENT_LABELS[id])
+      .filter(Boolean);
+    if (d.instrumental) {
+      return {
+        track: 'instrumental' as const,
+        text: d.idea.trim() || '一首温暖、轻柔的儿童纯音乐',
+        genre,
+        mood,
+        instruments: instrumentLabels,
+        modelVersion: 'v5.0' as const,
+      };
+    }
+    const lyrics = d.lyrics.trim() || buildLyrics(d.idea);
+    return {
+      track: 'vocal' as const,
+      lyrics,
+      prompt: d.idea.trim() || '一首温暖的童歌',
+      genre,
+      mood,
+      gender: d.voice === 'female' ? 'Female' : 'Male',
+      instruments: instrumentLabels,
+      modelVersion: 'v4.0' as const,
+    };
+  };
+
+  async function submitCreate(payload: ReturnType<typeof buildPayload>): Promise<{ taskId: string; predictedWaitTime: number }> {
+    const res = await fetch('/api/music/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.status === 502) {
+      const data = (await res.json()) as { detail: TiredDetail };
+      throw new BirdTiredError(data.detail);
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`create_failed ${res.status} ${text}`);
+    }
+    return res.json() as Promise<{ taskId: string; predictedWaitTime: number }>;
+  }
+
+  async function pollUntilDone(taskId: string, startedAt: number): Promise<{ audioUrl?: string }> {
+    while (Date.now() - startedAt < POLL_TIMEOUT_MS) {
+      if (taskIdRef.current !== taskId) {
+        // cancelled
+        throw new Error('cancelled');
+      }
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      if (taskIdRef.current !== taskId) {
+        throw new Error('cancelled');
+      }
+      const res = await fetch(`/api/music/status/${encodeURIComponent(taskId)}`);
+      if (res.status === 502) {
+        const data = (await res.json()) as { detail: TiredDetail };
+        throw new BirdTiredError(data.detail);
+      }
+      if (!res.ok) {
+        throw new Error(`status_failed ${res.status}`);
+      }
+      const data = (await res.json()) as {
+        status: 'pending' | 'running' | 'success' | 'failed' | 'unknown';
+        progress: number;
+        audioUrl?: string;
+        failureReason?: { code: number; msg: string } | null;
+      };
+      // Map progress to the 3-step indicator. Steps roughly: 0-30% (analyzing),
+      // 30-80% (inviting instruments), 80-100% (composing).
+      if (data.status === 'pending' || data.status === 'running') {
+        if (data.progress >= 80) setGenerateStep(2);
+        else if (data.progress >= 30) setGenerateStep(1);
+        else setGenerateStep(0);
+      } else if (data.status === 'success') {
+        setGenerateStep(2);
+        return { audioUrl: data.audioUrl };
+      } else if (data.status === 'failed') {
+        throw new Error(data.failureReason?.msg ?? 'generation_failed');
+      }
+    }
+    throw new Error('timeout');
+  }
+
   const handleGenerate = async () => {
     if (!isReady) {
       setToast('先写下你的歌曲故事吧');
       return;
     }
-
-    const generationId = ++generationRef.current;
     const finalLyrics = draft.instrumental
       ? ''
       : draft.lyrics.trim() || buildLyrics(draft.idea);
     if (finalLyrics !== draft.lyrics) updateDraft('lyrics', finalLyrics);
 
+    const generationId = ++generationRef.current;
     setGenerateStep(0);
     setView('generating');
     setIsPlaying(false);
+    setAudioUrl(null);
+    setResultTaskId(null);
+    setPredictedWaitTime(null);
+    setTiredError(null);
 
-    for (let step = 0; step < GENERATION_STEPS.length; step += 1) {
+    try {
+      const payload = buildPayload(draft);
+      const { taskId, predictedWaitTime: wait } = await submitCreate(payload);
+      taskIdRef.current = taskId;
+      setResultTaskId(taskId);
+      setPredictedWaitTime(wait);
+      const startedAt = Date.now();
+      const { audioUrl: resultAudioUrl } = await pollUntilDone(taskId, startedAt);
       if (generationRef.current !== generationId) return;
-      setGenerateStep(step);
-      await new Promise((resolve) => window.setTimeout(resolve, 1050));
+      if (resultAudioUrl) setAudioUrl(resultAudioUrl);
+      setResultTitle(draft.title.trim() || (draft.instrumental ? '会飞的旋律' : '星光小旅行'));
+      setGenerated(true);
+      setView('result');
+      setCurrentTime(0);
+    } catch (err) {
+      taskIdRef.current = null;
+      if (err instanceof BirdTiredError) {
+        setTiredError(err.detail);
+        setView('create');
+        return;
+      }
+      if ((err as Error).message === 'cancelled') return;
+      setToast('生成失败，请稍后再试');
+      setView('create');
     }
-    if (generationRef.current !== generationId) return;
-
-    setResultTitle(draft.title.trim() || (draft.instrumental ? '会飞的旋律' : '星光小旅行'));
-    setGenerated(true);
-    setView('result');
-    setCurrentTime(0);
   };
 
   const cancelGeneration = () => {
     generationRef.current += 1;
+    taskIdRef.current = null;
     setView('create');
     setToast('创作已暂停，灵感都还在');
+  };
+
+  const dismissTired = () => setTiredError(null);
+
+  const simplifyAndRetry = () => {
+    setDraft((current) => ({
+      ...current,
+      instruments: [],
+      lyrics: '',
+      instrumental: true,
+    }));
+    setTiredError(null);
+    setToast('已简化需求，记得写下场景描述再试一次');
   };
 
   const togglePlay = async () => {
@@ -253,7 +400,8 @@ export default function WorkshopPage() {
       mood: draft.mood,
       instruments: draft.instruments,
       status,
-      audio: '/audio/sample-song.mp3',
+      audio: audioUrl ?? FALLBACK_AUDIO_SRC,
+      taskId: resultTaskId ?? undefined,
       caption: status === 'published' ? publishText.trim() : '',
       emoji: status === 'published' ? publishEmoji : '🎵',
       createdAt: new Date().toISOString(),
@@ -278,7 +426,7 @@ export default function WorkshopPage() {
   };
 
   const selectedInstrumentNames = draft.instruments
-    .map((id) => labelFor(INSTRUMENTS, id))
+    .map((id) => labelFor(INSTRUMENT_LABELS, id))
     .filter(Boolean)
     .join('、');
 
@@ -512,17 +660,17 @@ export default function WorkshopPage() {
               <fieldset>
                 <legend className="mb-2 text-sm font-extrabold text-[#665548]">曲风</legend>
                 <div className="grid grid-cols-3 gap-2">
-                  {GENRES.map((item) => {
-                    const active = draft.genre === item.id;
+                  {GENRE_IDS.map((id) => {
+                    const active = draft.genre === id;
                     return (
                       <button
-                        key={item.id}
+                        key={id}
                         type="button"
                         aria-pressed={active}
-                        onClick={() => updateDraft('genre', item.id)}
+                        onClick={() => updateDraft('genre', id)}
                         className={`relative min-h-[58px] rounded-xl border-2 px-1 text-sm font-bold transition active:scale-95 ${active ? 'border-[#52715E] bg-[#DFF3EF] text-[#3F6351]' : 'border-[#EEE6DF] bg-[#FCFAF8] text-[#6B625C]'}`}
                       >
-                        <span className="mr-1" aria-hidden="true">{item.icon}</span>{item.label}
+                        <span className="mr-1" aria-hidden="true">{GENRE_ICONS[id]}</span>{GENRE_LABELS[id]}
                         {active && <span className="absolute right-1.5 top-1 text-[10px] text-[#52715E]">●</span>}
                       </button>
                     );
@@ -533,17 +681,17 @@ export default function WorkshopPage() {
               <fieldset className="mt-5">
                 <legend className="mb-2 text-sm font-extrabold text-[#665548]">情绪</legend>
                 <div className="grid grid-cols-3 gap-2">
-                  {MOODS.map((item) => {
-                    const active = draft.mood === item.id;
+                  {MOOD_IDS.map((id) => {
+                    const active = draft.mood === id;
                     return (
                       <button
-                        key={item.id}
+                        key={id}
                         type="button"
                         aria-pressed={active}
-                        onClick={() => updateDraft('mood', item.id)}
+                        onClick={() => updateDraft('mood', id)}
                         className={`relative min-h-[58px] rounded-xl border-2 px-1 text-sm font-bold transition active:scale-95 ${active ? 'border-[#52715E] bg-[#DFF3EF] text-[#3F6351]' : 'border-[#EEE6DF] bg-[#FCFAF8] text-[#6B625C]'}`}
                       >
-                        <span className="mr-1" aria-hidden="true">{item.icon}</span>{item.label}
+                        <span className="mr-1" aria-hidden="true">{MOOD_ICONS[id]}</span>{MOOD_LABELS[id]}
                         {active && <span className="absolute right-1.5 top-1 text-[10px] text-[#52715E]">●</span>}
                       </button>
                     );
@@ -565,10 +713,7 @@ export default function WorkshopPage() {
                 <fieldset>
                   <legend className="mb-2 text-sm font-extrabold text-[#665548]">人声</legend>
                   <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#F8F4EF] p-1.5">
-                    {([
-                      ['female', '清亮女声', '🐦'],
-                      ['male', '温柔男声', '🐤'],
-                    ] as const).map(([id, label, icon]) => (
+                    {(Object.keys(VOICE_LABELS) as Voice[]).map((id) => (
                       <button
                         key={id}
                         type="button"
@@ -576,7 +721,7 @@ export default function WorkshopPage() {
                         onClick={() => updateDraft('voice', id)}
                         className={`min-h-12 rounded-xl text-sm font-extrabold transition active:scale-95 ${draft.voice === id ? 'bg-white text-[#7A54B3] shadow-sm ring-1 ring-[#D9C8F2]' : 'text-[#786C64]'}`}
                       >
-                        <span className="mr-1" aria-hidden="true">{icon}</span>{label}
+                        <span className="mr-1" aria-hidden="true">{VOICE_ICONS[id]}</span>{VOICE_LABELS[id]}
                       </button>
                     ))}
                   </div>
@@ -589,18 +734,18 @@ export default function WorkshopPage() {
                   <span className={`text-xs ${draft.instruments.length === 2 ? 'text-[#E87824]' : 'text-[#A89B90]'}`}>已选 {draft.instruments.length}/2</span>
                 </legend>
                 <div className="grid grid-cols-3 gap-2">
-                  {INSTRUMENTS.map((item) => {
-                    const active = draft.instruments.includes(item.id);
+                  {INSTRUMENT_IDS.map((id) => {
+                    const active = draft.instruments.includes(id);
                     return (
                       <button
-                        key={item.id}
+                        key={id}
                         type="button"
                         aria-pressed={active}
-                        onClick={() => toggleInstrument(item.id)}
+                        onClick={() => toggleInstrument(id)}
                         className={`relative min-h-[62px] rounded-xl border-2 text-sm font-bold transition active:scale-95 ${active ? 'border-[#A785E5] bg-[#F4EEFF] text-[#6D4AA1]' : 'border-[#EEE6DF] bg-[#FCFAF8] text-[#6B625C]'}`}
                       >
-                        <span className="mb-0.5 block text-xl" aria-hidden="true">{item.icon}</span>
-                        {item.label}
+                        <span className="mb-0.5 block text-xl" aria-hidden="true">{INSTRUMENT_ICONS[id]}</span>
+                        {INSTRUMENT_LABELS[id]}
                         {active && <span className="absolute right-1.5 top-1 text-xs text-[#8F67C8]">✓</span>}
                       </button>
                     );
@@ -632,14 +777,14 @@ export default function WorkshopPage() {
               <div className="px-5 pb-5 pt-5 text-center">
                 <h2 className="text-2xl font-black tracking-tight text-[#352B25]">《{resultTitle}》</h2>
                 <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 text-xs font-bold text-[#7A6B61]">
-                  <span className="rounded-full bg-[#FFF1DE] px-2.5 py-1">{labelFor(GENRES, draft.genre)}</span>
-                  <span className="rounded-full bg-[#DFF3EF] px-2.5 py-1 text-[#3F6351]">{labelFor(MOODS, draft.mood)}</span>
+                  <span className="rounded-full bg-[#FFF1DE] px-2.5 py-1">{labelFor(GENRE_LABELS, draft.genre)}</span>
+                  <span className="rounded-full bg-[#DFF3EF] px-2.5 py-1 text-[#3F6351]">{labelFor(MOOD_LABELS, draft.mood)}</span>
                   {selectedInstrumentNames && <span className="rounded-full bg-[#F4EEFF] px-2.5 py-1">{selectedInstrumentNames}</span>}
                 </div>
 
                 <audio
                   ref={audioRef}
-                  src="/audio/sample-song.mp3"
+                  src={audioUrl ?? FALLBACK_AUDIO_SRC}
                   preload="metadata"
                   onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
                   onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
@@ -770,7 +915,11 @@ export default function WorkshopPage() {
               </motion.div>
             </motion.div>
             <p className="mt-6 text-xl font-black text-[#3F352E]">{GENERATION_STEPS[generateStep]}…</p>
-            <p className="mt-2 text-sm font-semibold text-[#8A7666]">通常需要一点时间，请听听小鸟的排练声</p>
+            <p className="mt-2 text-sm font-semibold text-[#8A7666]">
+              {predictedWaitTime
+                ? `预计需要约 ${Math.max(1, Math.round(predictedWaitTime))} 秒，请耐心等待`
+                : '通常需要一点时间，请听听小鸟的排练声'}
+            </p>
             <div className="mt-8 w-full max-w-xs space-y-3 text-left">
               {GENERATION_STEPS.map((step, index) => (
                 <div key={step} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${index === generateStep ? 'bg-white shadow-sm' : ''}`}>
@@ -850,6 +999,61 @@ export default function WorkshopPage() {
             className="fixed left-1/2 top-[calc(1rem+env(safe-area-inset-top,0px))] z-[90] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl bg-[#2C3E50] px-4 py-3 text-center text-sm font-bold text-white shadow-xl"
           >
             {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {tiredError && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[80] flex items-end justify-center bg-black/35 p-0"
+            onClick={dismissTired}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="tired-title"
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-lg rounded-t-[28px] bg-[#FFF9F2] px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl"
+            >
+              <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#D8CCC2]" />
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFE4D1] text-2xl" aria-hidden="true">🐦</div>
+                <div className="flex-1">
+                  <h2 id="tired-title" className="text-lg font-black text-[#3F2E22]">小鸟累了，请换个组合再试一次</h2>
+                  <p className="mt-0.5 text-xs text-[#8A7666]">刚刚的请求暂时无法完成（{tiredError.action}）</p>
+                </div>
+              </div>
+              <p className="mt-4 rounded-2xl bg-[#FFF1DE] px-4 py-3 text-sm leading-6 text-[#6B5548]">
+                试试减少乐器数量、换成纯音乐模式，或者把故事写得再具体一点。
+              </p>
+              {process.env.NODE_ENV !== 'production' && (
+                <p className="mt-2 px-1 text-[10px] text-[#B6A89D]">code: {tiredError.code} · req: {tiredError.message}</p>
+              )}
+              <div className="mt-4 grid grid-cols-[0.9fr_1.1fr] gap-2">
+                <button
+                  type="button"
+                  onClick={dismissTired}
+                  className="min-h-13 rounded-2xl bg-white font-bold text-[#77685D] ring-1 ring-[#E8DDD4]"
+                >
+                  我再试试
+                </button>
+                <button
+                  type="button"
+                  onClick={simplifyAndRetry}
+                  className="min-h-13 rounded-2xl bg-[#FF9F43] font-black text-white shadow-lg shadow-orange-200"
+                >
+                  帮我简化需求
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

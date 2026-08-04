@@ -12,10 +12,14 @@ interface CreateMusicRequest {
   lyrics?: string;
   prompt?: string;
   duration?: number;
+  /** Volcengine `Genre` field — already a Chinese label (e.g. "流行"). */
   genre?: string;
+  /** Volcengine `Mood` field — already a Chinese label (e.g. "开心"). */
   mood?: string;
   gender?: 'Female' | 'Male';
   timbre?: string;
+  /** Optional Chinese-labelled instrument names (max 2). Concat-into-TextPrompt by gensong.ts. */
+  instruments?: string[];
   modelVersion?: 'v4.0' | 'v4.3' | 'v5.0';
   lang?: string;
   vodFormat?: 'wav' | 'mp3';
@@ -71,6 +75,7 @@ export async function POST(req: NextRequest) {
           duration: body.duration,
           callbackUrl: body.callbackUrl,
           enableInputRewrite: false,
+          instruments: body.instruments,
         },
         credentials,
       );
@@ -98,6 +103,7 @@ export async function POST(req: NextRequest) {
         duration: body.duration,
         lang: body.lang,
         vodFormat: body.vodFormat,
+        instruments: body.instruments,
       },
       credentials,
     );

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { GENRE_LABELS, INSTRUMENT_IDS, INSTRUMENT_LABELS, MOOD_LABELS } from '@/lib/constants';
 
 interface Work {
   id: number;
@@ -13,6 +14,7 @@ interface Work {
   audio?: string;
   caption?: string;
   emoji?: string;
+  instruments?: string[];
 }
 
 interface StoredWork {
@@ -24,17 +26,9 @@ interface StoredWork {
   audio: string;
   caption?: string;
   emoji?: string;
+  instruments?: string[];
+  taskId?: string;
 }
-
-const GENRE_LABELS: Record<string, string> = {
-  pop: '流行', rnb: '节奏蓝调', hiphop: '嘻哈', rap: '说唱',
-  rock: '摇滚', jazz: '爵士', country: '乡村', classic: '古典',
-};
-
-const MOOD_LABELS: Record<string, string> = {
-  happy: '开心', sad: '难过', excited: '兴奋', relaxed: '放松', romantic: '浪漫',
-  powerful: '有力量', mysterious: '神秘', nostalgic: '怀念', playful: '俏皮', dreamy: '梦幻',
-};
 
 const DEMO_WORKS: Work[] = [
   { id: 1, title: '乡间小路', author: '小明', time: '2 分钟前', style: '😊 欢快', stars: 12, starred: false },
@@ -64,6 +58,7 @@ export default function CommunityPage() {
           audio: work.audio,
           caption: work.caption,
           emoji: work.emoji,
+          instruments: work.instruments,
         }));
       setWorks([...publishedWorks, ...DEMO_WORKS]);
     } catch {
@@ -137,8 +132,18 @@ export default function CommunityPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">{work.style}</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">{work.style}</span>
+                {work.instruments && work.instruments.length > 0 && (
+                  <span className="text-xs bg-[#F4EEFF] text-[#6D4AA1] px-2.5 py-1 rounded-full">
+                    🎵 {work.instruments
+                      .filter((id): id is keyof typeof INSTRUMENT_LABELS => (INSTRUMENT_IDS as readonly string[]).includes(id))
+                      .map((id) => INSTRUMENT_LABELS[id])
+                      .join('、')}
+                  </span>
+                )}
+              </div>
               <motion.button
                 whileTap={{ scale: 1.3 }}
                 onClick={() => handleStar(work.id)}

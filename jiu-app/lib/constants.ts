@@ -359,3 +359,42 @@ export const CATEGORY_LABELS: Record<string, string> = {
   abstract: '抽象大师',
   mystery: '神秘来客',
 };
+
+// 工坊（workshop）表单用的标签映射。ID 是英文 token，发给后端 / Volcengine 时
+// 用 LABELS[id] 查表得到中文展示文本。GENRE_IDS / MOOD_IDS / INSTRUMENT_IDS / VOICE_IDS
+// 决定工坊页面渲染哪些按钮；INSTRUMENT 故意只 6 件（对齐 PRD §3.6 钢琴/吉他/鼓/小提琴/大提琴/长笛）。
+export const GENRE_IDS = [
+  'pop', 'rnb', 'hiphop', 'rap', 'rock', 'jazz', 'country', 'classic',
+] as const;
+export type GenreId = (typeof GENRE_IDS)[number];
+
+export const MOOD_IDS = [
+  'happy', 'sad', 'excited', 'relaxed', 'romantic',
+  'powerful', 'mysterious', 'nostalgic', 'playful', 'dreamy',
+] as const;
+export type MoodId = (typeof MOOD_IDS)[number];
+
+export const INSTRUMENT_IDS = [
+  'piano', 'guitar', 'drums', 'violin', 'cello', 'flute',
+] as const;
+export type InstrumentId = (typeof INSTRUMENT_IDS)[number];
+
+export const VOICE_IDS = ['female', 'male'] as const;
+export type VoiceId = (typeof VOICE_IDS)[number];
+
+export const GENRE_LABELS: Record<string, string> = {
+  pop: '流行', rnb: '节奏蓝调', hiphop: '嘻哈', rap: '说唱',
+  rock: '摇滚', jazz: '爵士', country: '乡村', classic: '古典',
+};
+export const MOOD_LABELS: Record<string, string> = {
+  happy: '开心', sad: '难过', excited: '兴奋', relaxed: '放松',
+  romantic: '浪漫', powerful: '有力量', mysterious: '神秘',
+  nostalgic: '怀念', playful: '俏皮', dreamy: '梦幻',
+};
+export const INSTRUMENT_LABELS: Record<InstrumentId, string> = {
+  piano: '钢琴', guitar: '吉他', drums: '鼓',
+  violin: '小提琴', cello: '大提琴', flute: '长笛',
+};
+export const VOICE_LABELS: Record<VoiceId, string> = {
+  female: '清亮女声', male: '温柔男声',
+};

@@ -20,6 +20,8 @@ export interface GenBGMForTimeParams {
   version?: string;
   callbackUrl?: string;
   enableInputRewrite?: boolean;
+  /** Optional list of Chinese-labelled instruments to bias the BGM (max 2). */
+  instruments?: string[];
 }
 
 export interface GenSongForTimeParams {
@@ -34,6 +36,8 @@ export interface GenSongForTimeParams {
   callbackUrl?: string;
   lang?: string;
   vodFormat?: 'wav' | 'mp3';
+  /** Optional list of Chinese-labelled instruments to bias the song (max 2). */
+  instruments?: string[];
 }
 
 export interface SubmitResponse {
@@ -44,6 +48,15 @@ export interface SubmitResponse {
 interface VolcSubmitPayload {
   TaskID: string;
   PredictedWaitTime: number;
+}
+
+// Append the user-picked main instruments as a soft directive at the end of
+// the description. The Volcengine Imagination API does not expose a dedicated
+// instrument field, so we bias the model by tacking them onto the natural
+// language description. Empty / undefined arrays are a no-op.
+function withInstrumentDirective(base: string, instruments?: string[]): string {
+  if (!instruments || instruments.length === 0) return base;
+  return `${base}，主乐器：${instruments.join('、')}`;
 }
 
 function normalizeSubmit(payload: VolcSubmitPayload): SubmitResponse {
@@ -170,7 +183,7 @@ export function submitGenBGMForTime(
   credentials: LoadedCredentials,
 ): Promise<SubmitResponse> {
   const body = {
-    Text: params.text,
+    Text: withInstrumentDirective(params.text, params.instruments),
     Duration: params.duration,
     Version: params.version ?? 'v5.0',
     CallbackURL: params.callbackUrl ?? '',
@@ -190,9 +203,10 @@ export function submitGenSongForTime(
   if (!params.lyrics && !params.prompt) {
     throw new Error('GenSongForTime requires either Lyrics or Prompt');
   }
+  const promptWithInstruments = withInstrumentDirective(params.prompt ?? '', params.instruments);
   const body = {
     Lyrics: params.lyrics ?? '',
-    Prompt: params.prompt ?? '',
+    Prompt: promptWithInstruments,
     ModelVersion: params.modelVersion ?? 'v4.0',
     Genre: params.genre ?? '',
     Mood: params.mood ?? '',
