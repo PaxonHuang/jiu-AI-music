@@ -26,7 +26,7 @@ export async function persistAudioToR2(
     throw new Error(`Failed to download audio: ${resp.status} ${resp.statusText}`);
   }
 
-  const key = `music/${taskId}-${Date.now()}.wav`;
+  const key = `${taskId}.wav`;
   const contentType = resp.headers.get('content-type') ?? 'audio/wav';
   await bucket.put(key, resp.body as ReadableStream, {
     httpMetadata: { contentType },

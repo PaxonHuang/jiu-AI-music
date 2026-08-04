@@ -31,7 +31,7 @@ jiu-complete-package/                  # Git repo root
 │   │   └── volcengine/                # sign.ts + gensong.ts (+ *.test.ts)
 │   ├── stores/globalStore.ts          # Zustand single store
 │   └── wrangler.jsonc                 # OpenNext Cloudflare config
-├── jiu-project/                       # Planning docs (feasibility, specs, architecture)
+├── doc/                               # Gitignored PDFs (啾工坊 PRD in `doc/啾工坊 产品需求文档.pdf`)
 ├── .remember/                         # Per-project handoff memory (root, not jiu-app/)
 └── CLAUDE.md                          # This file
 ```
@@ -125,7 +125,7 @@ node --experimental-strip-types --no-warnings --test \
 
 ## Project Docs
 
-`jiu-project/` contains planning docs in Chinese (feasibility report, SOP/tech spec, architecture doc, MVP scope). Read `04-核心模块细化与MVP范围.md` for the definitive MVP scope and what was explicitly cut.
+`doc/` (gitignored) holds the canonical 啾工坊 产品需求文档 PDF — read that for the authoritative spec.
 
 ## Common mistakes to avoid
 
