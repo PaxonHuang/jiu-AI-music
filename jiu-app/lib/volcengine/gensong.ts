@@ -117,13 +117,13 @@ interface VolcResponse<T> {
   Code: number;
   Message: string;
   Result: T;
-  ResponseMetadata: {
-    RequestId: string;
-    Action: string;
-    Version: string;
-    Service: string;
-    Region: string;
-    Error: unknown;
+  ResponseMetadata?: {
+    RequestId?: string;
+    Action?: string;
+    Version?: string;
+    Service?: string;
+    Region?: string;
+    Error?: unknown;
   };
 }
 
@@ -170,10 +170,20 @@ async function call<T>({
   const url = `https://${VOLC_HOST}?Action=${action}&Version=${VOLC_VERSION}`;
   const resp = await fetch(url, { method: 'POST', headers, body: bodyString, signal });
   const text = await resp.text();
-  const json = JSON.parse(text) as VolcResponse<T>;
+  let json: VolcResponse<T>;
+  try {
+    json = JSON.parse(text) as VolcResponse<T>;
+  } catch {
+    throw new Error(`Volcengine ${action} returned non-JSON HTTP ${resp.status}`);
+  }
 
-  if (json.Code !== 0) {
-    throw new VolcApiError(json.Code, json.Message, action, json.ResponseMetadata.RequestId);
+  if (!resp.ok || json.Code !== 0) {
+    throw new VolcApiError(
+      json.Code ?? resp.status,
+      json.Message ?? `HTTP ${resp.status}`,
+      action,
+      json.ResponseMetadata?.RequestId ?? 'unknown',
+    );
   }
   return json.Result;
 }
@@ -200,23 +210,28 @@ export function submitGenSongForTime(
   params: GenSongForTimeParams,
   credentials: LoadedCredentials,
 ): Promise<SubmitResponse> {
-  if (!params.lyrics && !params.prompt) {
+  const lyrics = params.lyrics?.trim();
+  const prompt = params.prompt?.trim();
+  if (!lyrics && !prompt) {
     throw new Error('GenSongForTime requires either Lyrics or Prompt');
   }
-  const promptWithInstruments = withInstrumentDirective(params.prompt ?? '', params.instruments);
-  const body = {
-    Lyrics: params.lyrics ?? '',
-    Prompt: promptWithInstruments,
+
+  const body: Record<string, unknown> = {
     ModelVersion: params.modelVersion ?? 'v4.0',
-    Genre: params.genre ?? '',
-    Mood: params.mood ?? '',
-    Gender: params.gender ?? '',
-    Timbre: params.timbre ?? '',
-    Duration: params.duration ?? 0,
-    CallbackURL: params.callbackUrl ?? '',
     Lang: params.lang ?? 'Chinese',
     VodFormat: params.vodFormat ?? 'wav',
   };
+  // Volcengine v4.x treats Lyrics and Prompt as mutually exclusive. Prefer
+  // explicit lyrics because the workshop's three writing modes produce them.
+  if (lyrics) body.Lyrics = lyrics;
+  else body.Prompt = withInstrumentDirective(prompt!, params.instruments);
+  if (params.genre?.trim()) body.Genre = params.genre.trim();
+  if (params.mood?.trim()) body.Mood = params.mood.trim();
+  if (params.gender) body.Gender = params.gender;
+  if (params.timbre?.trim()) body.Timbre = params.timbre.trim();
+  if (params.duration !== undefined) body.Duration = params.duration;
+  if (params.callbackUrl?.trim()) body.CallbackURL = params.callbackUrl.trim();
+
   return call<VolcSubmitPayload>({
     action: 'GenSongForTime',
     body,

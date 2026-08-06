@@ -158,7 +158,8 @@ test('submitGenSongForTime appends a Chinese instrument directive to Prompt', as
     );
     assert.ok(captured);
     const body = JSON.parse(String(captured.init.body));
-    assert.equal(body.Prompt, '温暖的童歌，主乐器：钢琴、吉他');
+    assert.equal(body.Lyrics, '主歌歌词');
+    assert.equal(body.Prompt, undefined);
     assert.equal(body.Genre, '流行');
     assert.equal(body.Mood, '开心');
   } finally {
@@ -191,7 +192,7 @@ test('submitGenSongForTime leaves Prompt untouched when instruments is empty', a
 
   try {
     await submitGenSongForTime(
-      { lyrics: '主歌歌词', prompt: '安静的摇篮曲', instruments: [] },
+      { prompt: '安静的摇篮曲', instruments: [] },
       fakeCredentials,
     );
     assert.ok(captured);

@@ -54,7 +54,6 @@ const DRAFT_KEY = 'jiu_workshop_draft';
 const WORKS_KEY = 'jiu_workshop_works';
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
-const FALLBACK_AUDIO_SRC = '/audio/sample-song.mp3';
 
 const DEFAULT_DRAFT: Draft = {
   title: '',
@@ -72,6 +71,7 @@ interface TiredDetail {
   code: number;
   message: string;
   action: string;
+  requestId?: string;
 }
 
 class BirdTiredError extends Error {
@@ -101,7 +101,7 @@ function sanitizeDraft(input: Partial<Draft> | null | undefined): Draft {
 
 function buildLyrics(theme: string) {
   const subject = theme.trim() || '一场闪闪发光的旅行';
-  return `【主歌】\n今天我要唱一唱，${subject}\n风从窗边轻轻走，带着愿望去远方\n\n【副歌】\n飞呀飞呀，跟着旋律出发\n每一个小小梦想，都会慢慢地长大`;
+  return `[verse]\n今天我要唱一唱，${subject}\n风从窗边轻轻走，带着愿望去远方\n\n[chorus]\n飞呀飞呀，跟着旋律出发\n每一个小小梦想，都会慢慢地长大`;
 }
 
 function formatTime(seconds: number) {
@@ -238,12 +238,13 @@ export default function WorkshopPage() {
     return {
       track: 'vocal' as const,
       lyrics,
-      prompt: d.idea.trim() || '一首温暖的童歌',
       genre,
       mood,
       gender: d.voice === 'female' ? 'Female' : 'Male',
       instruments: instrumentLabels,
       modelVersion: 'v4.0' as const,
+      lang: 'Chinese',
+      vodFormat: 'wav' as const,
     };
   };
 
@@ -254,8 +255,8 @@ export default function WorkshopPage() {
       body: JSON.stringify(payload),
     });
     if (res.status === 502) {
-      const data = (await res.json()) as { detail: TiredDetail };
-      throw new BirdTiredError(data.detail);
+      const data = (await res.json()) as { message?: string; detail: TiredDetail };
+      throw new BirdTiredError({ ...data.detail, message: data.message ?? data.detail.message });
     }
     if (!res.ok) {
       const text = await res.text();
@@ -276,8 +277,8 @@ export default function WorkshopPage() {
       }
       const res = await fetch(`/api/music/status/${encodeURIComponent(taskId)}`);
       if (res.status === 502) {
-        const data = (await res.json()) as { detail: TiredDetail };
-        throw new BirdTiredError(data.detail);
+        const data = (await res.json()) as { message?: string; detail: TiredDetail };
+        throw new BirdTiredError({ ...data.detail, message: data.message ?? data.detail.message });
       }
       if (!res.ok) {
         throw new Error(`status_failed ${res.status}`);
@@ -392,6 +393,7 @@ export default function WorkshopPage() {
   };
 
   const persistWork = (status: 'saved' | 'published') => {
+    if (!audioUrl) return false;
     const work = {
       id: Date.now(),
       title: resultTitle,
@@ -400,7 +402,7 @@ export default function WorkshopPage() {
       mood: draft.mood,
       instruments: draft.instruments,
       status,
-      audio: audioUrl ?? FALLBACK_AUDIO_SRC,
+      audio: audioUrl,
       taskId: resultTaskId ?? undefined,
       caption: status === 'published' ? publishText.trim() : '',
       emoji: status === 'published' ? publishEmoji : '🎵',
@@ -408,15 +410,22 @@ export default function WorkshopPage() {
     };
     const existing = JSON.parse(localStorage.getItem(WORKS_KEY) || '[]');
     localStorage.setItem(WORKS_KEY, JSON.stringify([work, ...existing]));
+    return true;
   };
 
   const saveWork = () => {
-    persistWork('saved');
+    if (!persistWork('saved')) {
+      setToast('音频还没有准备好，请稍后再保存');
+      return;
+    }
     setToast('已经保存到作品集');
   };
 
   const publishWork = () => {
-    persistWork('published');
+    if (!persistWork('published')) {
+      setToast('音频还没有准备好，请稍后再试');
+      return;
+    }
     if (!published) {
       addFragment('怪羽', 3);
       setPublished(true);
@@ -784,7 +793,7 @@ export default function WorkshopPage() {
 
                 <audio
                   ref={audioRef}
-                  src={audioUrl ?? FALLBACK_AUDIO_SRC}
+                  src={audioUrl ?? undefined}
                   preload="metadata"
                   onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
                   onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
