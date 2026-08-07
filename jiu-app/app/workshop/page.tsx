@@ -16,6 +16,8 @@ import {
   type InstrumentId,
 } from '@/lib/constants';
 import { useGlobalStore } from '@/stores/globalStore';
+import { ensureSession, getDeviceId } from '@/lib/client/session';
+import { writeWorkshopWork } from '@/lib/workshop/storage';
 
 type LyricsMode = 'ai' | 'write' | 'continue';
 type WorkshopView = 'create' | 'generating' | 'result';
@@ -51,9 +53,23 @@ const VOICE_ICONS: Record<Voice, string> = { female: '🐦', male: '🐤' };
 const IDEAS = ['我的小猫', '快乐暑假', '梦里的星球', '送给妈妈'];
 const GENERATION_STEPS = ['正在分析你的故事', '正在邀请乐器朋友', '正在合成最终旋律'];
 const DRAFT_KEY = 'jiu_workshop_draft';
-const WORKS_KEY = 'jiu_workshop_works';
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
+async function publishToCommunity(caption: string, taskId?: string): Promise<boolean> {
+  try {
+    const user = await ensureSession();
+    if (!user) return false;
+    const response = await fetch('/api/community/posts', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ body: caption, taskId }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
 
 const DEFAULT_DRAFT: Draft = {
   title: '',
@@ -408,8 +424,7 @@ export default function WorkshopPage() {
       emoji: status === 'published' ? publishEmoji : '🎵',
       createdAt: new Date().toISOString(),
     };
-    const existing = JSON.parse(localStorage.getItem(WORKS_KEY) || '[]');
-    localStorage.setItem(WORKS_KEY, JSON.stringify([work, ...existing]));
+    writeWorkshopWork(getDeviceId(), work);
     return true;
   };
 
@@ -426,6 +441,9 @@ export default function WorkshopPage() {
       setToast('音频还没有准备好，请稍后再试');
       return;
     }
+    // Best-effort sync to the community feed. Failing that, the work stays in
+    // the local library and publishing still counts as complete.
+    void publishToCommunity(publishText.trim(), resultTaskId ?? undefined);
     if (!published) {
       addFragment('怪羽', 3);
       setPublished(true);
