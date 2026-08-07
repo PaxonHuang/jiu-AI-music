@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadCredentials } from '@/lib/volcengine/sign';
-import { submitGenBGMForTime, submitGenSongForTime, VolcApiError } from '@/lib/volcengine/gensong';
+import { selectMusicProvider } from '@/lib/workshop/provider';
+import { MusicProviderError } from '@/lib/workshop/types';
 
 export const runtime = 'nodejs';
 
@@ -65,9 +65,9 @@ export async function POST(req: NextRequest) {
     return badRequest('JSON body required');
   }
 
-  let credentials;
+  let provider;
   try {
-    credentials = loadCredentials();
+    provider = selectMusicProvider();
   } catch (err) {
     return NextResponse.json(
       {
@@ -88,20 +88,18 @@ export async function POST(req: NextRequest) {
       if (body.instruments && (!Array.isArray(body.instruments) || body.instruments.length > 2)) {
         return badRequest('at most two instruments are allowed');
       }
-      const submit = await submitGenBGMForTime(
-        {
-          text,
-          duration: body.duration,
-          callbackUrl: body.callbackUrl,
-          enableInputRewrite: false,
-          instruments: body.instruments,
-        },
-        credentials,
-      );
+      const submit = await provider.createTask({
+        track: 'instrumental',
+        text,
+        duration: body.duration,
+        callbackUrl: body.callbackUrl,
+        instruments: body.instruments,
+      });
       return NextResponse.json({
         taskId: submit.taskId,
         predictedWaitTime: submit.predictedWaitTime,
         track: body.track,
+        provider: provider.name,
       });
     }
 
@@ -118,29 +116,28 @@ export async function POST(req: NextRequest) {
     if (body.instruments && (!Array.isArray(body.instruments) || body.instruments.length > 2)) {
       return badRequest('at most two instruments are allowed');
     }
-    const submit = await submitGenSongForTime(
-      {
-        lyrics,
-        prompt,
-        modelVersion: body.modelVersion,
-        genre: body.genre,
-        mood: body.mood,
-        gender: body.gender,
-        timbre: body.timbre,
-        duration: body.duration,
-        lang: body.lang,
-        vodFormat: body.vodFormat,
-        instruments: body.instruments,
-      },
-      credentials,
-    );
+    const submit = await provider.createTask({
+      track: 'vocal',
+      lyrics,
+      prompt,
+      modelVersion: body.modelVersion,
+      genre: body.genre,
+      mood: body.mood,
+      gender: body.gender,
+      timbre: body.timbre,
+      duration: body.duration,
+      lang: body.lang,
+      vodFormat: body.vodFormat,
+      instruments: body.instruments,
+    });
     return NextResponse.json({
       taskId: submit.taskId,
       predictedWaitTime: submit.predictedWaitTime,
       track: body.track,
+      provider: provider.name,
     });
   } catch (err) {
-    if (err instanceof VolcApiError) {
+    if (err instanceof MusicProviderError) {
       return birdTired({
         code: err.code,
         message: err.message,

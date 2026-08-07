@@ -21,6 +21,13 @@ export async function persistAudioToR2(
     return { url: audioUrl, persisted: false };
   }
 
+  // Only remote URLs need copying. A provider may hand back an app-local path
+  // (the mock provider's sample asset does), which is already permanent and
+  // which fetch() would reject as an invalid URL.
+  if (!/^https?:\/\//i.test(audioUrl)) {
+    return { url: audioUrl, persisted: false };
+  }
+
   const key = `${taskId}.wav`;
   const existing = await bucket.get(key);
   if (existing) {
