@@ -30,6 +30,8 @@ export interface SessionUser {
   type: UserRow['type'];
   displayName: string | null;
   email: string | null;
+  /** ISO-8601 user creation time, used for "加入啾" display. */
+  createdAt: string;
 }
 
 /**
@@ -76,7 +78,7 @@ export async function getSessionUser(
   const database = db ?? (await requireDb());
   const row = await database
     .prepare(
-      `select u.id, u.type, u.display_name, u.email
+      `select u.id, u.type, u.display_name, u.email, u.created_at
          from sessions s
          join users u on u.id = s.user_id
         where s.id = ?
@@ -84,7 +86,7 @@ export async function getSessionUser(
           and s.expires_at > ?`,
     )
     .bind(sessionId, nowIso())
-    .first<Pick<UserRow, 'id' | 'type' | 'display_name' | 'email'>>();
+    .first<Pick<UserRow, 'id' | 'type' | 'display_name' | 'email' | 'created_at'>>();
 
   return row ? toSessionUser(row) : null;
 }
@@ -101,17 +103,20 @@ export async function revokeSession(request: Request, db?: D1Database): Promise<
 
 async function findUser(db: D1Database, id: string): Promise<SessionUser | null> {
   const row = await db
-    .prepare(`select id, type, display_name, email from users where id = ?`)
+    .prepare(`select id, type, display_name, email, created_at from users where id = ?`)
     .bind(id)
-    .first<Pick<UserRow, 'id' | 'type' | 'display_name' | 'email'>>();
+    .first<Pick<UserRow, 'id' | 'type' | 'display_name' | 'email' | 'created_at'>>();
   return row ? toSessionUser(row) : null;
 }
 
-function toSessionUser(row: Pick<UserRow, 'id' | 'type' | 'display_name' | 'email'>): SessionUser {
+function toSessionUser(
+  row: Pick<UserRow, 'id' | 'type' | 'display_name' | 'email' | 'created_at'>,
+): SessionUser {
   return {
     id: row.id,
     type: row.type,
     displayName: row.display_name,
     email: row.email,
+    createdAt: row.created_at,
   };
 }

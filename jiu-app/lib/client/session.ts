@@ -12,6 +12,7 @@ export interface SessionUser {
   type: 'guest' | 'email';
   displayName: string | null;
   email: string | null;
+  createdAt: string;
 }
 
 let cached: SessionUser | null | undefined;

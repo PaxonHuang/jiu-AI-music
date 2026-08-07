@@ -6,7 +6,8 @@ const tabs = [
   { href: '/academy', label: '学院', icon: '🎓' },
   { href: '/workshop', label: '工坊', icon: '🎵' },
   { href: '/community', label: '社区', icon: '🌟' },
-  { href: '/collection', label: '我的', icon: '🐦' },
+  { href: '/collection', label: '图鉴', icon: '🐦' },
+  { href: '/me', label: '我', icon: '👤' },
 ];
 
 export function BottomNav() {

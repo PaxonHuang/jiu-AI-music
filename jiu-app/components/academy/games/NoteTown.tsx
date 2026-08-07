@@ -64,7 +64,7 @@ export function NoteTown({
       window.clearTimeout(playbackTimerRef.current);
     }
     setIsPlaying(true);
-    playTone(target.freq, 0.75, 0.25);
+    playTone(target.freq, 0.75, 0.5);
     playbackTimerRef.current = window.setTimeout(() => {
       setIsPlaying(false);
       playbackTimerRef.current = null;
@@ -111,7 +111,7 @@ export function NoteTown({
 
     const nextCorrect = correct + 1;
     setCorrect(nextCorrect);
-    playTone(target.freq, 0.45, 0.2);
+    playTone(target.freq, 0.45, 0.4);
     transitionTimerRef.current = window.setTimeout(() => {
       if (round >= rounds.length - 1) {
         onComplete(mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1);

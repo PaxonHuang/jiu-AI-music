@@ -42,9 +42,20 @@ interface PostJoinRow {
 }
 
 export async function listPosts(
-  options: { limit: number; viewerId: string | null; db?: D1Database },
+  options: {
+    limit: number;
+    viewerId: string | null;
+    /** Restrict to one author (used by the "我的帖子" tab). */
+    authorId?: string | null;
+    db?: D1Database;
+  },
 ): Promise<CommunityPost[]> {
   const db = options.db ?? (await requireDb());
+
+  const authorClause = options.authorId ? 'and p.user_id = ?' : '';
+  const params: unknown[] = [options.viewerId ?? ''];
+  if (options.authorId) params.push(options.authorId);
+  params.push(options.limit);
 
   // `liked` is resolved in the same statement so the list does not need an
   // N+1 follow-up per post.
@@ -58,10 +69,11 @@ export async function listPosts(
          left join community_post_music m on m.post_id = p.id
          left join community_post_likes l on l.post_id = p.id and l.user_id = ?
         where p.status = 'published' and p.moderation_status = 'approved'
+          ${authorClause}
         order by p.created_at desc, p.id desc
         limit ?`,
     )
-    .bind(options.viewerId ?? '', options.limit)
+    .bind(...params)
     .all<PostJoinRow>();
 
   return results.map(toCommunityPost);
@@ -171,6 +183,26 @@ export async function toggleLike(
 
 export function audioUrlForTask(taskId: string): string {
   return `/api/music/audio/${encodeURIComponent(taskId)}`;
+}
+
+/**
+ * Soft-deletes a post. Only its author may delete it; returns false when the
+ * post does not exist or belongs to someone else. The feed query filters on
+ * status = 'published', so a deleted post disappears everywhere at once.
+ */
+export async function deletePost(
+  options: { postId: string; userId: string; db?: D1Database },
+): Promise<boolean> {
+  const db = options.db ?? (await requireDb());
+  const { success, meta } = await db
+    .prepare(
+      `update community_posts
+          set status = 'deleted', updated_at = ?
+        where id = ? and user_id = ? and status = 'published'`,
+    )
+    .bind(nowIso(), options.postId, options.userId)
+    .run();
+  return success && (meta.changes ?? 0) > 0;
 }
 
 function toCommunityPost(row: PostJoinRow): CommunityPost {

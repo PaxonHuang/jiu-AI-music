@@ -20,6 +20,8 @@ interface Work {
   instruments?: string[];
   /** Server post id — when set, starring calls the community API. */
   postId?: string;
+  /** Server post author — used to show a delete button on my own posts. */
+  authorId?: string;
 }
 
 interface ServerPost {
@@ -47,6 +49,7 @@ function postToWork(post: ServerPost): Work {
     id: 0,
     key: `post-${post.id}`,
     postId: post.id,
+    authorId: post.authorId,
     title: post.body || '啾友的作品',
     author: post.authorName ?? '啾友',
     time: formatTime(post.createdAt),
@@ -72,6 +75,7 @@ function formatTime(iso: string): string {
 export default function CommunityPage() {
   const [works, setWorks] = useState<Work[]>(DEMO_WORKS);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -97,6 +101,7 @@ export default function CommunityPage() {
 
     user.then((currentUser) => {
       if (cancelled) return;
+      setMyUserId(currentUser?.id ?? null);
       if (!currentUser) {
         // No session (server unreachable) — local works + demos only.
         setWorks([...localWorks, ...DEMO_WORKS]);
@@ -150,6 +155,18 @@ export default function CommunityPage() {
           : w,
       ),
     );
+  };
+
+  const handleDelete = async (work: Work) => {
+    if (!work.postId) return;
+    try {
+      const response = await fetch(`/api/community/posts/${work.postId}`, { method: 'DELETE' });
+      if (response.ok) {
+        setWorks((prev) => prev.filter((w) => w.key !== work.key));
+      }
+    } catch {
+      // Offline — keep the post.
+    }
   };
 
   const togglePlay = (work: Work) => {
@@ -230,6 +247,15 @@ export default function CommunityPage() {
                 <span className="text-lg">{work.starred ? '⭐' : '☆'}</span>
                 <span>{work.stars}</span>
               </motion.button>
+              {work.postId && work.authorId === myUserId && (
+                <button
+                  type="button"
+                  onClick={() => void handleDelete(work)}
+                  className="text-xs font-bold text-red-400"
+                >
+                  删除
+                </button>
+              )}
             </div>
           </motion.div>
         ))}

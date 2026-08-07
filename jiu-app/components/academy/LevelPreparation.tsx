@@ -2,6 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { AcademyLevel } from '@/lib/constants';
+import { TeachingAid } from '@/components/academy/TeachingAid';
+import { TEACHING_AIDS } from '@/components/academy/teachingAids';
 
 interface LevelPreparationProps {
   level: AcademyLevel;
@@ -78,6 +80,10 @@ export function LevelPreparation({
           </p>
         </div>
       </div>
+
+      {TEACHING_AIDS[level.game] && (
+        <TeachingAid {...TEACHING_AIDS[level.game]} />
+      )}
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-center text-[11px] font-bold text-slate-500 sm:mt-4 sm:gap-3 sm:text-xs">
         <div className="rounded-xl bg-white/70 px-2 py-2">

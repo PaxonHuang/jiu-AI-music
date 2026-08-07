@@ -8,10 +8,16 @@ const MAX_BODY_LENGTH = 500;
 
 export async function GET(req: NextRequest) {
   try {
-    // Anonymous reads are allowed; a viewer is only needed to mark `liked`.
+    // Anonymous reads are allowed; a viewer is only needed to mark `liked`
+    // or to scope `mine` to the caller.
     const user = await getSessionUser(req);
     const limit = clampLimit(req.nextUrl.searchParams.get('limit'));
-    const posts = await listPosts({ limit, viewerId: user?.id ?? null });
+    const mine = req.nextUrl.searchParams.get('mine') === '1';
+    const posts = await listPosts({
+      limit,
+      viewerId: user?.id ?? null,
+      authorId: mine ? user?.id ?? null : null,
+    });
     return NextResponse.json({ posts });
   } catch (err) {
     return NextResponse.json(

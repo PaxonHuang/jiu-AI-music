@@ -40,6 +40,18 @@ const FLOOR_DETAILS = [
 
 const FLOOR_SLOT_HEIGHT = 45;
 
+// PRD 学院 v3 的判定标准是 Hz 制:Do–Sol ±30Hz,La ±40Hz,Si ±45Hz。
+// 儿童唱高音偏差较大,La/Si 按文档适度放宽。
+const TOLERANCE_HZ: Record<string, number> = {
+  Do: 30,
+  Re: 30,
+  Mi: 30,
+  Fa: 30,
+  Sol: 30,
+  La: 40,
+  Si: 45,
+};
+
 export function PitchTower({
   onComplete,
   onMistake,
@@ -145,7 +157,9 @@ export function PitchTower({
 
       const difference = 12 * Math.log2(hz / target.freq);
       setDetected(`${hzToNote(hz)} · ${Math.round(hz)} Hz`);
-      if (Math.abs(difference) <= (simpleMode ? 3.5 : 2.2)) {
+      const toleranceHz = TOLERANCE_HZ[target.name] ?? 30;
+      // 简单模式再放宽一档(×1.8),让答错较多的孩子更容易唱准。
+      if (Math.abs(hz - target.freq) <= (simpleMode ? toleranceHz * 1.8 : toleranceHz)) {
         setStatus('correct');
         playTone(target.freq, 0.4, 0.18);
         finishFloor();

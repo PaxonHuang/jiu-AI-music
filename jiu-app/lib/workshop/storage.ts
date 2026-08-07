@@ -58,6 +58,13 @@ export function writeWorkshopWork(activeUserId: string | null, work: PublishedWo
   storage.setItem(getWorkshopWorksStorageKey(activeUserId), JSON.stringify(next));
 }
 
+export function deleteWorkshopWork(activeUserId: string | null, id: number): void {
+  const storage = getStorage();
+  if (!storage) return;
+  const next = readWorkshopWorks(activeUserId).filter((item) => item.id !== id);
+  storage.setItem(getWorkshopWorksStorageKey(activeUserId), JSON.stringify(next));
+}
+
 function getStorage(): Storage | null {
   if (typeof globalThis === 'undefined' || !('localStorage' in globalThis)) return null;
   return globalThis.localStorage;

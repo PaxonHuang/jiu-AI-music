@@ -17,6 +17,7 @@ const config = [
     rules: {
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/purity': 'warn',
+      'react-hooks/immutability': 'warn',
     },
   },
   {
