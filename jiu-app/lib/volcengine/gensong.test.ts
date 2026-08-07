@@ -60,9 +60,9 @@ test('VolcApiError carries actionable fields', () => {
 
 test('submitGenBGMForTime POSTs the verified payload shape', async () => {
   const original = globalThis.fetch;
-  let captured: { url: string; init: RequestInit } | null = null;
+  const calls: { url: string; init: RequestInit }[] = [];
   globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
-    captured = { url: String(url), init: init ?? {} };
+    calls.push({ url: String(url), init: init ?? {} });
     return new Response(
       JSON.stringify({
         Code: 0,
@@ -84,9 +84,9 @@ test('submitGenBGMForTime POSTs the verified payload shape', async () => {
   try {
     const result = await submitGenBGMForTime({ text: '欢快的鸟鸣' }, fakeCredentials);
     assert.equal(result.taskId, 'task-1');
-    assert.ok(captured);
-    assert.match(captured.url, /Action=GenBGMForTime/);
-    const body = JSON.parse(String(captured.init.body));
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /Action=GenBGMForTime/);
+    const body = JSON.parse(String(calls[0].init.body));
     assert.equal(body.Text, '欢快的鸟鸣');
     assert.equal(body.Version, 'v5.0');
   } finally {
@@ -124,9 +124,9 @@ test('querySong surfaces VolcApiError on non-zero Code', async () => {
 
 test('submitGenSongForTime appends a Chinese instrument directive to Prompt', async () => {
   const original = globalThis.fetch;
-  let captured: { url: string; init: RequestInit } | null = null;
+  const calls: { url: string; init: RequestInit }[] = [];
   globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
-    captured = { url: String(url), init: init ?? {} };
+    calls.push({ url: String(url), init: init ?? {} });
     return new Response(
       JSON.stringify({
         Code: 0,
@@ -156,8 +156,8 @@ test('submitGenSongForTime appends a Chinese instrument directive to Prompt', as
       },
       fakeCredentials,
     );
-    assert.ok(captured);
-    const body = JSON.parse(String(captured.init.body));
+    assert.equal(calls.length, 1);
+    const body = JSON.parse(String(calls[0].init.body));
     assert.equal(body.Lyrics, '主歌歌词');
     assert.equal(body.Prompt, undefined);
     assert.equal(body.Genre, '流行');
@@ -169,9 +169,9 @@ test('submitGenSongForTime appends a Chinese instrument directive to Prompt', as
 
 test('submitGenSongForTime leaves Prompt untouched when instruments is empty', async () => {
   const original = globalThis.fetch;
-  let captured: { init: RequestInit } | null = null;
+  const calls: { init: RequestInit }[] = [];
   globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
-    captured = { init: init ?? {} };
+    calls.push({ init: init ?? {} });
     return new Response(
       JSON.stringify({
         Code: 0,
@@ -195,8 +195,8 @@ test('submitGenSongForTime leaves Prompt untouched when instruments is empty', a
       { prompt: '安静的摇篮曲', instruments: [] },
       fakeCredentials,
     );
-    assert.ok(captured);
-    const body = JSON.parse(String(captured.init.body));
+    assert.equal(calls.length, 1);
+    const body = JSON.parse(String(calls[0].init.body));
     assert.equal(body.Prompt, '安静的摇篮曲');
   } finally {
     globalThis.fetch = original;
@@ -205,9 +205,9 @@ test('submitGenSongForTime leaves Prompt untouched when instruments is empty', a
 
 test('submitGenBGMForTime appends an instrument directive to Text', async () => {
   const original = globalThis.fetch;
-  let captured: { init: RequestInit } | null = null;
+  const calls: { init: RequestInit }[] = [];
   globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
-    captured = { init: init ?? {} };
+    calls.push({ init: init ?? {} });
     return new Response(
       JSON.stringify({
         Code: 0,
@@ -231,8 +231,8 @@ test('submitGenBGMForTime appends an instrument directive to Text', async () => 
       { text: '森林清晨', instruments: ['长笛', '钢琴'] },
       fakeCredentials,
     );
-    assert.ok(captured);
-    const body = JSON.parse(String(captured.init.body));
+    assert.equal(calls.length, 1);
+    const body = JSON.parse(String(calls[0].init.body));
     assert.equal(body.Text, '森林清晨，主乐器：长笛、钢琴');
   } finally {
     globalThis.fetch = original;

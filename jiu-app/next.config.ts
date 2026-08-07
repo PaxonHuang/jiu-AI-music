@@ -1,16 +1,12 @@
 import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
 
-const nextConfig: NextConfig = {
-  webpack(config, { dev }) {
-    if (dev) {
-      // Avoid eval-source-map producing invalid quoted chunks in this
-      // Windows/Next.js development environment.
-      config.devtool = 'cheap-module-source-map';
-    }
-    return config;
-  },
-};
+// Next 16 builds with Turbopack by default. The previous `webpack()` override
+// only existed to force `cheap-module-source-map` in dev, working around an
+// eval-source-map quirk in webpack — Turbopack does not use eval-source-map,
+// so the workaround is obsolete, and keeping a webpack config without a
+// matching turbopack config is a hard build error.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
 
