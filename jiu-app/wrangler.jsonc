@@ -14,6 +14,14 @@
       "bucket_name": "jiu-music-audio"
     }
   ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jiu-music-db",
+      "database_id": "1e71751b-4770-409f-af44-60c073b2eda7",
+      "migrations_dir": "migrations"
+    }
+  ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
