@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server/auth';
-import { clampLimit, createPost, listPosts } from '@/lib/server/community';
+import { clampLimit, createPost, isCommunitySort, listPosts } from '@/lib/server/community';
 
 export const runtime = 'nodejs';
 
@@ -13,10 +13,13 @@ export async function GET(req: NextRequest) {
     const user = await getSessionUser(req);
     const limit = clampLimit(req.nextUrl.searchParams.get('limit'));
     const mine = req.nextUrl.searchParams.get('mine') === '1';
+    const rawSort = req.nextUrl.searchParams.get('sort');
+    const sort = rawSort && isCommunitySort(rawSort) ? rawSort : 'latest';
     const posts = await listPosts({
       limit,
       viewerId: user?.id ?? null,
       authorId: mine ? user?.id ?? null : null,
+      sort,
     });
     return NextResponse.json({ posts });
   } catch (err) {

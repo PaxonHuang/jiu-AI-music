@@ -41,18 +41,25 @@ interface PostJoinRow {
   liked: number;
 }
 
+export type CommunitySort = 'latest' | 'hot';
+
 export async function listPosts(
   options: {
     limit: number;
     viewerId: string | null;
     /** Restrict to one author (used by the "我的帖子" tab). */
     authorId?: string | null;
+    sort?: CommunitySort;
     db?: D1Database;
   },
 ): Promise<CommunityPost[]> {
   const db = options.db ?? (await requireDb());
 
   const authorClause = options.authorId ? 'and p.user_id = ?' : '';
+  const orderBy =
+    options.sort === 'hot'
+      ? 'p.like_count desc, p.comment_count desc, p.created_at desc, p.id desc'
+      : 'p.created_at desc, p.id desc';
   const params: unknown[] = [options.viewerId ?? ''];
   if (options.authorId) params.push(options.authorId);
   params.push(options.limit);
@@ -70,13 +77,17 @@ export async function listPosts(
          left join community_post_likes l on l.post_id = p.id and l.user_id = ?
         where p.status = 'published' and p.moderation_status = 'approved'
           ${authorClause}
-        order by p.created_at desc, p.id desc
+        order by ${orderBy}
         limit ?`,
     )
     .bind(...params)
     .all<PostJoinRow>();
 
   return results.map(toCommunityPost);
+}
+
+export function isCommunitySort(value: unknown): value is CommunitySort {
+  return value === 'latest' || value === 'hot';
 }
 
 export async function createPost(

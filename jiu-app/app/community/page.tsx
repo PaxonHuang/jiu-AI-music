@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { AnimatePresence, motion } from 'framer-motion';
 import { GENRE_LABELS, INSTRUMENT_IDS, INSTRUMENT_LABELS, MOOD_LABELS } from '@/lib/constants';
 import { getDeviceId, ensureSession } from '@/lib/client/session';
 import { readWorkshopWorks } from '@/lib/workshop/storage';
@@ -37,12 +38,16 @@ interface ServerPost {
   liked: boolean;
 }
 
+type Sort = 'latest' | 'hot';
+
 const DEMO_WORKS: Work[] = [
   { id: 1, key: 'demo-1', title: '乡间小路', author: '小明', time: '2 分钟前', style: '😊 欢快', stars: 12, starred: false },
   { id: 2, key: 'demo-2', title: '山里的风', author: '小红', time: '1 小时前', style: '🌙 安静', stars: 8, starred: false },
   { id: 3, key: 'demo-3', title: '梦中的鸟', author: '小刚', time: '3 小时前', style: '✨ 梦幻', stars: 5, starred: false },
   { id: 4, key: 'demo-4', title: '溪水叮咚', author: '小美', time: '5 小时前', style: '🌙 安静', stars: 3, starred: false },
 ];
+
+const PUBLISH_EMOJIS = ['🎵', '🐱', '🌈', '🌙', '🌊', '🌸', '⭐', '🎡'];
 
 function postToWork(post: ServerPost): Work {
   return {
@@ -57,7 +62,6 @@ function postToWork(post: ServerPost): Work {
     stars: post.likeCount,
     starred: post.liked,
     audio: post.audioUrl ?? undefined,
-    caption: post.body || undefined,
   };
 }
 
@@ -76,58 +80,89 @@ export default function CommunityPage() {
   const [works, setWorks] = useState<Work[]>(DEMO_WORKS);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [sort, setSort] = useState<Sort>('latest');
+  const [showPublish, setShowPublish] = useState(false);
+  const [publishText, setPublishText] = useState('');
+  const [publishEmoji, setPublishEmoji] = useState('🎵');
+  const [publishing, setPublishing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const user = ensureSession().catch(() => null);
+  const loadFeed = useCallback(
+    async (sortValue: Sort) => {
+      const current = await ensureSession().catch(() => null);
+      setMyUserId(current?.id ?? null);
 
-    const localWorks: Work[] = readWorkshopWorks(getDeviceId())
-      .filter((work) => work.status === 'published')
-      .map((work) => ({
-        id: work.id,
-        key: `local-${work.id}`,
-        title: work.title,
-        author: '我',
-        time: formatTime(work.createdAt),
-        style: `${MOOD_LABELS[work.mood] ?? '原创'} · ${GENRE_LABELS[work.genre] ?? '音乐'}`,
-        stars: 0,
-        starred: false,
-        audio: work.audio,
-        caption: work.caption,
-        emoji: work.emoji,
-        instruments: work.instruments,
-      }));
+      const localWorks: Work[] = readWorkshopWorks(getDeviceId())
+        .filter((work) => work.status === 'published')
+        .map((work) => ({
+          id: work.id,
+          key: `local-${work.id}`,
+          title: work.title,
+          author: '我',
+          time: formatTime(work.createdAt),
+          style: `${MOOD_LABELS[work.mood] ?? '原创'} · ${GENRE_LABELS[work.genre] ?? '音乐'}`,
+          stars: 0,
+          starred: false,
+          audio: work.audio,
+          caption: work.caption,
+          emoji: work.emoji,
+          instruments: work.instruments,
+        }));
 
-    user.then((currentUser) => {
-      if (cancelled) return;
-      setMyUserId(currentUser?.id ?? null);
-      if (!currentUser) {
+      if (!current) {
         // No session (server unreachable) — local works + demos only.
         setWorks([...localWorks, ...DEMO_WORKS]);
         return;
       }
-      // Server reachable — community feed first, then my local works.
-      fetch('/api/community/posts?limit=20')
-        .then((response) => (response.ok ? response.json() as Promise<{ posts: ServerPost[] }> : null))
-        .then((payload) => {
-          if (cancelled) return;
-          const serverWorks = (payload?.posts ?? []).map(postToWork);
-          setWorks([...serverWorks, ...localWorks, ...DEMO_WORKS]);
-        })
-        .catch(() => {
-          if (!cancelled) setWorks([...localWorks, ...DEMO_WORKS]);
-        });
-    });
+      try {
+        const response = await fetch(`/api/community/posts?limit=20&sort=${sortValue}`);
+        if (!response.ok) throw new Error(`feed ${response.status}`);
+        const payload = (await response.json()) as { posts: ServerPost[] };
+        const serverWorks = (payload.posts ?? []).map(postToWork);
+        // Real posts outrank the static demo cards; demos only show when the
+        // feed is empty so a fresh demo never looks dead.
+        setWorks(
+          serverWorks.length > 0
+            ? [...serverWorks, ...localWorks]
+            : [...localWorks, ...DEMO_WORKS],
+        );
+      } catch {
+        setWorks([...localWorks, ...DEMO_WORKS]);
+      }
+    },
+    [],
+  );
 
+  useEffect(() => {
+    void loadFeed(sort);
     return () => {
-      cancelled = true;
       audioRef.current?.pause();
     };
-  }, []);
+  }, [sort, loadFeed]);
+
+  const submitPublish = async () => {
+    const body = `${publishEmoji} ${publishText}`.trim();
+    if (!body.replace(/^\S+\s/, '')) return;
+    setPublishing(true);
+    try {
+      const response = await fetch('/api/community/posts', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ body }),
+      });
+      if (response.ok) {
+        setShowPublish(false);
+        setPublishText('');
+        await loadFeed(sort);
+      }
+    } catch {
+      // Offline — keep the modal open so the text is not lost.
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const handleStar = async (work: Work) => {
-    // Server post: toggle through the API, apply the returned state.
     if (work.postId) {
       try {
         const response = await fetch(`/api/community/posts/${work.postId}/like`, { method: 'POST' });
@@ -190,76 +225,187 @@ export default function CommunityPage() {
         <h1 className="text-xl font-bold text-gray-800 text-center">🌟 社区</h1>
       </div>
 
-      <div className="p-4 space-y-3">
-        {works.map((work) => (
-          <motion.div
-            key={work.key}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50"
+      {/* 最新 / 热门 */}
+      <div className="sticky top-[52px] z-10 flex gap-2 bg-[#FFF8F0]/95 px-4 py-2 backdrop-blur">
+        {(
+          [
+            { key: 'latest', label: '🕐 最新' },
+            { key: 'hot', label: '🔥 热门' },
+          ] as { key: Sort; label: string }[]
+        ).map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setSort(item.key)}
+            className={`rounded-xl px-4 py-1.5 text-sm font-bold transition-all ${
+              sort === item.key
+                ? 'bg-[#FF9F43] text-white shadow-md shadow-orange-200'
+                : 'bg-white text-gray-500'
+            }`}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">{work.emoji ?? '🎵'}</span>
-              <div>
-                <div className="font-semibold text-gray-800">{work.title}</div>
-                <div className="text-xs text-gray-400">{work.author} · {work.time}</div>
-              </div>
-            </div>
-
-            {work.caption && work.postId && (
-              <p className="mb-3 rounded-xl bg-orange-50 px-3 py-2 text-sm text-gray-600">{work.caption}</p>
-            )}
-
-            <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center gap-3 mb-3">
-              <button
-                type="button"
-                onClick={() => togglePlay(work)}
-                disabled={!work.audio}
-                aria-label={playingId === work.key ? `暂停${work.title}` : `播放${work.title}`}
-                className="w-8 h-8 rounded-full bg-[#FF9F43] text-white flex items-center justify-center text-sm disabled:opacity-70"
-              >
-                {playingId === work.key ? 'Ⅱ' : '▶'}
-              </button>
-              <div className="flex-1 h-1.5 bg-gray-200 rounded-full">
-                <div className={`h-full bg-[#FF9F43] rounded-full transition-all ${playingId === work.key ? 'w-2/3' : 'w-1/3'}`} />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">{work.style}</span>
-                {!work.postId && work.instruments && work.instruments.length > 0 && (
-                  <span className="text-xs bg-[#F4EEFF] text-[#6D4AA1] px-2.5 py-1 rounded-full">
-                    🎵 {work.instruments
-                      .filter((id): id is keyof typeof INSTRUMENT_LABELS => (INSTRUMENT_IDS as readonly string[]).includes(id))
-                      .map((id) => INSTRUMENT_LABELS[id])
-                      .join('、')}
-                  </span>
-                )}
-              </div>
-              <motion.button
-                whileTap={{ scale: 1.3 }}
-                onClick={() => void handleStar(work)}
-                className={`flex items-center gap-1 text-sm transition-all ${
-                  work.starred ? 'text-[#FF9F43]' : 'text-gray-400'
-                }`}
-              >
-                <span className="text-lg">{work.starred ? '⭐' : '☆'}</span>
-                <span>{work.stars}</span>
-              </motion.button>
-              {work.postId && work.authorId === myUserId && (
-                <button
-                  type="button"
-                  onClick={() => void handleDelete(work)}
-                  className="text-xs font-bold text-red-400"
-                >
-                  删除
-                </button>
-              )}
-            </div>
-          </motion.div>
+            {item.label}
+          </button>
         ))}
       </div>
+
+      <div className="p-4 space-y-3">
+        {works.length === 0 ? (
+          <div className="mt-14 text-center">
+            <div className="text-5xl">🐣</div>
+            <p className="mt-3 text-sm font-bold text-gray-500">
+              还没有作品，去工坊创作第一首歌吧～
+            </p>
+            <Link
+              href="/workshop"
+              className="mt-4 inline-block rounded-xl bg-[#FF9F43] px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-orange-200"
+            >
+              去工坊
+            </Link>
+          </div>
+        ) : (
+          works.map((work) => (
+            <motion.div
+              key={work.key}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-orange-50 text-lg">
+                  {work.emoji ?? (work.postId ? '🌍' : '🎵')}
+                </span>
+                <div className="min-w-0">
+                  <div className="truncate font-semibold text-gray-800">{work.title}</div>
+                  <div className="text-xs text-gray-400">{work.author} · {work.time}</div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center gap-3 mb-3">
+                <button
+                  type="button"
+                  onClick={() => togglePlay(work)}
+                  disabled={!work.audio}
+                  aria-label={playingId === work.key ? `暂停${work.title}` : `播放${work.title}`}
+                  className="w-8 h-8 rounded-full bg-[#FF9F43] text-white flex items-center justify-center text-sm disabled:opacity-70"
+                >
+                  {playingId === work.key ? 'Ⅱ' : '▶'}
+                </button>
+                <div className="flex-1 h-1.5 bg-gray-200 rounded-full">
+                  <div className={`h-full bg-[#FF9F43] rounded-full transition-all ${playingId === work.key ? 'w-2/3' : 'w-1/3'}`} />
+                </div>
+                {work.audio ? <span className="text-[10px] font-bold text-gray-400">可播放</span> : null}
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">{work.style}</span>
+                  {!work.postId && work.instruments && work.instruments.length > 0 && (
+                    <span className="text-xs bg-[#F4EEFF] text-[#6D4AA1] px-2.5 py-1 rounded-full">
+                      🎵 {work.instruments
+                        .filter((id): id is keyof typeof INSTRUMENT_LABELS => (INSTRUMENT_IDS as readonly string[]).includes(id))
+                        .map((id) => INSTRUMENT_LABELS[id])
+                        .join('、')}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <motion.button
+                    whileTap={{ scale: 1.3 }}
+                    onClick={() => void handleStar(work)}
+                    className={`flex items-center gap-1 text-sm transition-all ${
+                      work.starred ? 'text-[#FF9F43]' : 'text-gray-400'
+                    }`}
+                  >
+                    <span className="text-lg">{work.starred ? '⭐' : '☆'}</span>
+                    <span>{work.stars}</span>
+                  </motion.button>
+                  {work.postId && work.authorId === myUserId && (
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(work)}
+                      className="text-xs font-bold text-red-400"
+                    >
+                      删除
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          ))
+        )}
+      </div>
+
+      {/* 悬浮发布按钮(底部居中,避开右下角的伴学小鸟) */}
+      <button
+        type="button"
+        onClick={() => setShowPublish(true)}
+        aria-label="发布新帖子"
+        className="fixed bottom-20 left-1/2 z-30 grid h-14 w-14 -translate-x-1/2 place-items-center rounded-full bg-[#FF9F43] text-2xl text-white shadow-lg shadow-orange-300 active:scale-95"
+      >
+        +
+      </button>
+
+      <AnimatePresence>
+        {showPublish && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
+            onClick={() => setShowPublish(false)}
+          >
+            <motion.div
+              initial={{ y: 60 }}
+              animate={{ y: 0 }}
+              exit={{ y: 60 }}
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-lg rounded-t-3xl bg-white p-5 pb-8"
+            >
+              <div className="mb-3 text-center text-lg font-black text-gray-800">分享你的心情</div>
+              <div className="mb-3 flex gap-2">
+                {PUBLISH_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setPublishEmoji(emoji)}
+                    className={`grid h-10 w-10 place-items-center rounded-xl text-xl transition-transform ${
+                      publishEmoji === emoji ? 'scale-110 bg-orange-100 ring-2 ring-[#FF9F43]' : 'bg-gray-50'
+                    }`}
+                    aria-label={`选择表情${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={publishText}
+                onChange={(event) => setPublishText(event.target.value)}
+                placeholder="写点想分享的话吧……"
+                rows={3}
+                maxLength={500}
+                className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 outline-none focus:border-[#FF9F43]"
+              />
+              <div className="mt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPublish(false)}
+                  className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-bold text-gray-500"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void submitPublish()}
+                  disabled={publishing || !publishText.trim()}
+                  className="flex-1 rounded-xl bg-[#FF9F43] py-2.5 text-sm font-black text-white shadow-md shadow-orange-200 disabled:opacity-50"
+                >
+                  {publishing ? '发布中…' : '发布'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
