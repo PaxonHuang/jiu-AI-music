@@ -154,8 +154,10 @@ export default function WorkshopPage() {
   const [publishText, setPublishText] = useState('我的新歌完成啦！');
   const [publishEmoji, setPublishEmoji] = useState('🎵');
   const [published, setPublished] = useState(false);
+  const [writingLyrics, setWritingLyrics] = useState(false);
   const [toast, setToast] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lyricsBoxRef = useRef<HTMLDivElement | null>(null);
   const taskIdRef = useRef<string | null>(null);
   const generationRef = useRef(0);
 
@@ -200,25 +202,67 @@ export default function WorkshopPage() {
     setDraft((current) => ({ ...current, idea, lyrics: '' }));
   };
 
-  const createLyrics = () => {
+  const createLyrics = async () => {
     if (!draft.idea.trim()) {
       setToast('先告诉小鸟你想唱什么吧');
       return;
     }
-    updateDraft('lyrics', buildLyrics(draft.idea));
-    setToast('歌词写好啦，你还可以继续修改');
+    setWritingLyrics(true);
+    const fallback = buildLyrics(draft.idea);
+    try {
+      const response = await fetch('/api/lyrics/generate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'write',
+          theme: draft.idea,
+          genre: draft.genre,
+          mood: draft.mood,
+        }),
+      });
+      if (response.ok) {
+        const payload = (await response.json()) as { lyrics?: string };
+        updateDraft('lyrics', payload.lyrics?.trim() || fallback);
+        setToast('小鸟帮你写好啦，你还可以继续修改');
+      } else {
+        updateDraft('lyrics', fallback);
+        setToast('小鸟先用了自带小词库，也可以继续修改');
+      }
+    } catch {
+      updateDraft('lyrics', fallback);
+      setToast('网络开了小差，先用自带小词库');
+    } finally {
+      setWritingLyrics(false);
+    }
   };
 
-  const continueLyrics = () => {
+  const continueLyrics = async () => {
     if (!draft.lyrics.trim()) {
       setToast('先写下一两句，小鸟才能接着写');
       return;
     }
-    updateDraft(
-      'lyrics',
-      `${draft.lyrics.trim()}\n\n【新的段落】\n云朵把歌声轻轻收藏\n明天醒来又是晴朗`,
-    );
-    setToast('小鸟接着写了四句');
+    setWritingLyrics(true);
+    const fallback = `${draft.lyrics.trim()}\n\n【新的段落】\n云朵把歌声轻轻收藏\n明天醒来又是晴朗`;
+    try {
+      const response = await fetch('/api/lyrics/generate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ mode: 'continue', lyrics: draft.lyrics }),
+      });
+      if (response.ok) {
+        const payload = (await response.json()) as { lyrics?: string };
+        updateDraft('lyrics', payload.lyrics?.trim() || fallback);
+        setToast('小鸟接着你的故事写好啦');
+      } else {
+        updateDraft('lyrics', fallback);
+        setToast('小鸟先用了自带小词库，也可以继续修改');
+      }
+    } catch {
+      updateDraft('lyrics', fallback);
+      setToast('网络开了小差，先用自带小词库');
+    } finally {
+      setWritingLyrics(false);
+    }
   };
 
   const toggleInstrument = (id: InstrumentId) => {
@@ -457,6 +501,22 @@ export default function WorkshopPage() {
     .filter(Boolean)
     .join('、');
 
+  // 同步歌词:没有逐行时间戳,按"总时长 ÷ 行数"估算每行时间,随播放进度高亮滚动
+  const lyricLines = draft.lyrics.split('\n');
+  const activeLyricIndex =
+    !draft.instrumental && duration > 0 && isPlaying
+      ? Math.min(
+          Math.floor((currentTime / duration) * lyricLines.length),
+          lyricLines.length - 1,
+        )
+      : -1;
+
+  useEffect(() => {
+    if (activeLyricIndex < 0 || !lyricsBoxRef.current) return;
+    const line = lyricsBoxRef.current.children[activeLyricIndex] as HTMLElement | undefined;
+    line?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [activeLyricIndex]);
+
   return (
     <main className="jiu-page text-[#263746]">
       {view !== 'generating' && (
@@ -607,7 +667,7 @@ export default function WorkshopPage() {
                           onClick={createLyrics}
                           className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#FFC78F] bg-[#FFF8EF] text-sm font-bold text-[#D96D1C] active:scale-[0.98]"
                         >
-                          <span aria-hidden="true">✨</span> 先看看 AI 写的歌词
+                          <span aria-hidden="true">✨</span> {writingLyrics ? '小鸟正在写词…' : '先看看 AI 写的歌词'}
                         </button>
                         {draft.lyrics && (
                           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl bg-[#FFF8E7] p-4 ring-1 ring-[#F4DEB6]">
@@ -640,7 +700,7 @@ export default function WorkshopPage() {
                             onClick={continueLyrics}
                             className="min-h-11 w-full rounded-xl bg-[#FFF1DE] text-sm font-bold text-[#D96D1C] active:scale-[0.98]"
                           >
-                            ✨ 接着这一段写
+                            ✨ {writingLyrics ? '小鸟正在接着写…' : '接着这一段写'}
                           </button>
                         )}
                       </div>
@@ -852,9 +912,19 @@ export default function WorkshopPage() {
                   <h3 className="font-extrabold">同步歌词</h3>
                   <span className="rounded-full bg-[#FFF1DE] px-2.5 py-1 text-xs font-bold text-[#C7631A]">正在演唱</span>
                 </div>
-                <div className="max-h-52 overflow-y-auto rounded-2xl bg-[#FFFCF8] p-4 text-center text-sm leading-8 text-[#8A7B70]">
-                  {draft.lyrics.split('\n').map((line, index) => (
-                    <p key={`${line}-${index}`} className={index === 1 && isPlaying ? 'font-extrabold text-[#E87824]' : ''}>
+                <div
+                  ref={lyricsBoxRef}
+                  className="max-h-52 overflow-y-auto rounded-2xl bg-[#FFFCF8] p-4 text-center text-sm leading-8 text-[#8A7B70]"
+                >
+                  {lyricLines.map((line, index) => (
+                    <p
+                      key={`${line}-${index}`}
+                      className={
+                        index === activeLyricIndex
+                          ? 'font-extrabold text-[#E87824] transition-colors'
+                          : ''
+                      }
+                    >
                       {line || '\u00A0'}
                     </p>
                   ))}
