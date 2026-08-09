@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { GENRE_LABELS, MOOD_LABELS } from '@/lib/constants';
 import { ensureSession } from '@/lib/client/session';
 import { readWorkshopWorks, deleteWorkshopWork } from '@/lib/workshop/storage';
+import type { PublishedWork } from '@/lib/workshop/works';
 
 type Tab = 'works' | 'posts';
 
@@ -37,7 +38,7 @@ export default function MePage() {
   const [tab, setTab] = useState<Tab>('works');
   const [nickname, setNickname] = useState('啾友');
   const [joinDate, setJoinDate] = useState('');
-  const [works, setWorks] = useState<ReturnType<typeof readWorkshopWorks>>([]);
+  const [works, setWorks] = useState<PublishedWork[]>([]);
   const [posts, setPosts] = useState<MyPost[]>([]);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -62,11 +63,13 @@ export default function MePage() {
         void fetchMyPosts();
       }
     });
-    setWorks(readWorkshopWorks(typeof window !== 'undefined' ? localStorage.getItem('jiu_user_id') : null));
+    void readWorkshopWorks(
+      typeof window !== 'undefined' ? localStorage.getItem('jiu_user_id') : null,
+    ).then(setWorks);
   }, []);
 
-  const removeWork = (id: number) => {
-    deleteWorkshopWork(
+  const removeWork = async (id: number) => {
+    await deleteWorkshopWork(
       typeof window !== 'undefined' ? localStorage.getItem('jiu_user_id') : null,
       id,
     );
@@ -189,7 +192,7 @@ export default function MePage() {
                         <span className="text-[10px] text-gray-400">{formatTime(work.createdAt)}</span>
                         <button
                           type="button"
-                          onClick={() => removeWork(work.id)}
+                          onClick={() => void removeWork(work.id)}
                           className="text-[10px] font-bold text-red-400"
                         >
                           删除

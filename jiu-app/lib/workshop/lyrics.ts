@@ -5,9 +5,13 @@
 // doubao-seed 系列。所有失败都在调用方降级到本地模板,保证离线可用。
 
 const ARK_ENDPOINT = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
-// 该方舟账号实测可用(2026-08-09):deepseek-v4-flash-ga-260731 返回 200。
-// 可被 ARK_MODEL 环境变量覆盖。
-const DEFAULT_MODEL = 'deepseek-v4-flash-ga-260731';
+// 该方舟账号实测可用(2026-08-10):
+//   - doubao-seed-2-1-pro-260628  200 ✅(Seed 系当前旗舰,工坊写词默认)
+//   - doubao-seed-2-0-pro-260215  200 ✅
+//   - deepseek-v4-flash-ga-260731 200 ✅(上一版默认)
+// 注意 doubao-seed-1-8-251228 在该账号返回 404(未开通,1.x 系疑似退役);
+// 之后在方舟控制台开通后,可用 ARK_MODEL 环境变量切回。
+const DEFAULT_MODEL = 'doubao-seed-2-1-pro-260628';
 
 export interface GenerateLyricsInput {
   mode: 'write' | 'continue';

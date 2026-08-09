@@ -216,8 +216,10 @@ export function submitGenSongForTime(
     throw new Error('GenSongForTime requires either Lyrics or Prompt');
   }
 
+  // v5.0 is the only model version that accepts Genre/Mood style control
+  // (v4.0/v4.3 return 100010 InvalidRequestParams when they are set).
   const body: Record<string, unknown> = {
-    ModelVersion: params.modelVersion ?? 'v4.0',
+    ModelVersion: params.modelVersion ?? 'v5.0',
     Lang: params.lang ?? 'Chinese',
     VodFormat: params.vodFormat ?? 'wav',
   };

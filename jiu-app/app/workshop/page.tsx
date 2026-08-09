@@ -302,7 +302,9 @@ export default function WorkshopPage() {
       mood,
       gender: d.voice === 'female' ? 'Female' : 'Male',
       instruments: instrumentLabels,
-      modelVersion: 'v4.0' as const,
+      // Genre/Mood are rejected by v4.0/v4.3 (100010 InvalidRequestParams);
+      // only v5.0 accepts style control fields. Verified live 2026-08-09.
+      modelVersion: 'v5.0' as const,
       lang: 'Chinese',
       vodFormat: 'wav' as const,
     };
@@ -452,7 +454,7 @@ export default function WorkshopPage() {
     setCurrentTime(value);
   };
 
-  const persistWork = (status: 'saved' | 'published') => {
+  const persistWork = async (status: 'saved' | 'published') => {
     if (!audioUrl) return false;
     const work = {
       id: Date.now(),
@@ -468,20 +470,20 @@ export default function WorkshopPage() {
       emoji: status === 'published' ? publishEmoji : '🎵',
       createdAt: new Date().toISOString(),
     };
-    writeWorkshopWork(getDeviceId(), work);
+    await writeWorkshopWork(getDeviceId(), work);
     return true;
   };
 
-  const saveWork = () => {
-    if (!persistWork('saved')) {
+  const saveWork = async () => {
+    if (!(await persistWork('saved'))) {
       setToast('音频还没有准备好，请稍后再保存');
       return;
     }
     setToast('已经保存到作品集');
   };
 
-  const publishWork = () => {
-    if (!persistWork('published')) {
+  const publishWork = async () => {
+    if (!(await persistWork('published'))) {
       setToast('音频还没有准备好，请稍后再试');
       return;
     }

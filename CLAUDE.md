@@ -95,8 +95,11 @@ node --experimental-strip-types --no-warnings --test \
 | Signing `kDatePrefix` | `""` (empty string) | ❌ `"VOLC"` |
 | `UNSIGNABLE_HEADERS` | exactly 6: `authorization` / `content-type` / `content-length` / `user-agent` / `presigned-expires` / `expect` | ❌ 30+ header whitelist |
 | `GenBGM.Genre` | `[]string` array | ❌ single string |
+| `ModelVersion` for vocal | **must be `v5.0`** when `Genre`/`Mood` are set — `v4.0`/`v4.3` return `100010 InvalidRequestParams` | ❌ defaulting to v4.0 |
 | Response field names | PascalCase: `Status` / `TaskID` / `SongDetail` | — |
 | Status codes | 0=pending / 1=running / 2=success / 3=failed | — |
+
+**Workshop LLM (lyrics)**: Ark chat/completions with Bearer token (see `jiu-app/lib/workshop/lyrics.ts`). Default model is **`doubao-seed-2-1-pro-260628`** (Seed 系当前旗舰, 实测 200; `doubao-seed-1-8-251228` 在此账号 404 未开通). Override with `ARK_MODEL` env var. `next dev` does NOT read `.dev.vars` — only wrangler does; verify Ark/Volcengine calls under `wrangler dev` or after deploy.
 
 **Sign test verifies**: 12/12 unit tests pass for `sign.ts` (4) + `gensong.ts` (7) + `rewards.test.ts` (1, currently more cases — re-count before claiming).
 

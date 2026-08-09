@@ -92,7 +92,7 @@ export default function CommunityPage() {
       const current = await ensureSession().catch(() => null);
       setMyUserId(current?.id ?? null);
 
-      const localWorks: Work[] = readWorkshopWorks(getDeviceId())
+      const localWorks: Work[] = (await readWorkshopWorks(getDeviceId()))
         .filter((work) => work.status === 'published')
         .map((work) => ({
           id: work.id,
