@@ -54,7 +54,7 @@ export const TEACHING_AIDS: Record<string, { items: TeachingAidItem[]; caption: 
     ],
     caption: '水滴嗒一下就没了，是短声音；水流哗——能持续很久，是长声音。',
   },
-  'heartbeat-drummer': {
+  'rhythm-class': {
     items: [
       { emoji: '🐢', label: '乌龟', beats: [2] },
       { emoji: '🐇', label: '兔子', beats: [1] },
@@ -63,12 +63,12 @@ export const TEACHING_AIDS: Record<string, { items: TeachingAidItem[]; caption: 
     ],
     caption: '乌龟最慢（2 拍），冲刺兔最快（1/4 拍）。点点它们听差别。',
   },
-  'note-race': {
+  'rhythm-tap': {
     single: true,
     items: [{ emoji: '🥁', label: '节奏鼓', beats: [1, 1, 1, 1] }],
     caption: '跟着背景的均匀节拍，敲出稳定的鼓点。',
   },
-  'rhythm-puzzle': {
+  'rhythm-echo': {
     items: [
       { emoji: '🐢🐢', label: '慢慢走', beats: [2, 2] },
       { emoji: '🐇🐇🐇', label: '小跑步', beats: [1, 1, 1] },

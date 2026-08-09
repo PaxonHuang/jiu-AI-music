@@ -185,9 +185,9 @@ export type AcademyGameKey =
   | 'sound-elevator'
   | 'sound-relay'
   | 'sound-balance'
-  | 'heartbeat-drummer'
-  | 'note-race'
-  | 'rhythm-puzzle'
+  | 'rhythm-class'
+  | 'rhythm-tap'
+  | 'rhythm-echo'
   | 'note-town'
   | 'pitch-tower'
   | 'note-home';
@@ -273,7 +273,7 @@ export const LEVELS: AcademyLevel[] = [
     subtitle: '跟着节拍翻过山坡',
     zone: '风车山坡',
     companionTip: '把手放在胸口，音乐也有像心跳一样稳定的拍子。',
-    game: 'heartbeat-drummer',
+    game: 'rhythm-class',
     rewardType: '怪羽',
     position: { x: 69, y: 61 },
   },
@@ -288,7 +288,7 @@ export const LEVELS: AcademyLevel[] = [
     subtitle: '认识走路拍和跑步拍',
     zone: '节拍跑道',
     companionTip: '四分音符像走路，八分音符像小跑，两步当一步。',
-    game: 'note-race',
+    game: 'rhythm-tap',
     rewardType: '怪羽',
     position: { x: 31, y: 52 },
   },
@@ -303,7 +303,7 @@ export const LEVELS: AcademyLevel[] = [
     subtitle: '把音符拼成完整节奏',
     zone: '木桥工坊',
     companionTip: '把不同长度的木板拼在一起，就能搭出一座节奏桥啦！',
-    game: 'rhythm-puzzle',
+    game: 'rhythm-echo',
     rewardType: '怪羽',
     position: { x: 69, y: 43 },
   },
