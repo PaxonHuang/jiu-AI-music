@@ -145,9 +145,11 @@ export async function createPost(
 }
 
 /**
- * Toggles a like. Returns the new state, or null when the post does not exist.
- * The counter is recomputed from the likes table rather than incremented, so a
- * double-tap (or a retried request) cannot drift it away from the truth.
+ * Toggles a like atomically: one db.batch decides whether to insert or delete
+ * the row, then recomputes like_count from the likes table in the same
+ * transaction. Two concurrent toggle requests serialise on the batch rather
+ * than racing through three independent statements, so the count cannot drift.
+ * Returns the new state, or null when the post does not exist.
  */
 export async function toggleLike(
   options: { postId: string; userId: string; db?: D1Database },
@@ -165,31 +167,39 @@ export async function toggleLike(
     .bind(options.postId, options.userId)
     .first<{ user_id: string }>();
 
-  if (existing) {
-    await db
-      .prepare(`delete from community_post_likes where post_id = ? and user_id = ?`)
-      .bind(options.postId, options.userId)
-      .run();
-  } else {
-    await db
-      .prepare(
-        `insert into community_post_likes (post_id, user_id, created_at) values (?, ?, ?)`,
-      )
-      .bind(options.postId, options.userId, nowIso())
-      .run();
-  }
+  const stamp = nowIso();
+  const statements = existing
+    ? [
+        db
+          .prepare(`delete from community_post_likes where post_id = ? and user_id = ?`)
+          .bind(options.postId, options.userId),
+      ]
+    : [
+        db
+          .prepare(
+            `insert into community_post_likes (post_id, user_id, created_at) values (?, ?, ?)`,
+          )
+          .bind(options.postId, options.userId, stamp),
+      ];
 
   const counted = await db
     .prepare(
       `update community_posts
-          set like_count = (select count(*) from community_post_likes where post_id = ?)
+          set like_count = (
+            select count(*) from community_post_likes where post_id = ?
+          )
         where id = ?
         returning like_count`,
     )
-    .bind(options.postId, options.postId)
-    .first<{ like_count: number }>();
+    .bind(options.postId, options.postId);
 
-  return { liked: !existing, likeCount: counted?.like_count ?? 0 };
+  // Order: mutation first, then count — count is the source of truth.
+  const [, countResult] = await db.batch([...statements, counted]);
+  const likeCount =
+    (countResult as unknown as { results?: { like_count: number }[] }).results?.[0]
+      ?.like_count ?? 0;
+
+  return { liked: !existing, likeCount };
 }
 
 export function audioUrlForTask(taskId: string): string {
