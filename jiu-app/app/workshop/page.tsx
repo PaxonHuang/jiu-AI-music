@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import { BirdPortrait } from '@/components/collection/BirdPortrait';
+import { PageHeader } from '@/components/layout/PageHeader';
 import {
   BIRDS,
   GENRE_IDS,
@@ -522,21 +523,19 @@ export default function WorkshopPage() {
   return (
     <main className="jiu-page text-[#263746]">
       {view !== 'generating' && (
-        <header className="jiu-header">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold tracking-[0.18em] text-[#A77950]">JIU MUSIC WORKSHOP</p>
-              <h1 className="mt-0.5 text-[22px] font-black tracking-tight text-[#263746]">音乐工坊</h1>
-              <p className="mt-0.5 text-xs text-[#67594E]">把你的故事变成一首歌</p>
-            </div>
+        <PageHeader
+          eyebrow="JIU MUSIC WORKSHOP"
+          title="音乐工坊"
+          subtitle="把你的故事变成一首歌"
+          right={
             <div className="jiu-status-badge flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold">
               <span className={`h-2 w-2 rounded-full ${saved ? 'bg-[#2ED573]' : 'animate-pulse bg-[#FF9F43]'}`} />
               {saved ? '已保存' : '保存中'}
             </div>
-          </div>
-
+          }
+        >
           {generated && (
-            <div className="mt-3 grid grid-cols-2 rounded-xl bg-[#F3EADF] p-1" role="tablist" aria-label="工坊页面">
+            <div className="grid grid-cols-2 rounded-xl bg-[#F3EADF] p-1" role="tablist" aria-label="工坊页面">
               <button
                 type="button"
                 role="tab"
@@ -557,7 +556,7 @@ export default function WorkshopPage() {
               </button>
             </div>
           )}
-        </header>
+        </PageHeader>
       )}
 
       {view === 'create' && (

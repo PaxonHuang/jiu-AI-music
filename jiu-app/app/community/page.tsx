@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { GENRE_LABELS, INSTRUMENT_IDS, INSTRUMENT_LABELS, MOOD_LABELS } from '@/lib/constants';
 import { getDeviceId, ensureSession } from '@/lib/client/session';
 import { readWorkshopWorks } from '@/lib/workshop/storage';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 interface Work {
   id: number;
@@ -221,12 +222,14 @@ export default function CommunityPage() {
 
   return (
     <div className="min-h-screen bg-[#FFF8F0] pb-20">
-      <div className="sticky top-0 z-10 bg-[#FFF8F0] px-4 py-3 border-b border-orange-100">
-        <h1 className="text-xl font-bold text-gray-800 text-center">🌟 社区</h1>
-      </div>
+      <PageHeader
+        eyebrow="JIU COMMUNITY"
+        title="啾啾社区"
+        subtitle="分享你的音乐作品，听听大家的灵感"
+      />
 
       {/* 最新 / 热门 */}
-      <div className="sticky top-[52px] z-10 flex gap-2 bg-[#FFF8F0]/95 px-4 py-2 backdrop-blur">
+      <div className="jiu-tab-bar sticky top-[88px] z-10 flex gap-2 bg-[#FFF8F0]/95 px-4 py-2 backdrop-blur">
         {(
           [
             { key: 'latest', label: '🕐 最新' },
