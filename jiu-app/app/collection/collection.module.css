@@ -59,13 +59,15 @@
 
 .categoryNav {
   position: sticky;
-  top: 6rem;
+  top: calc(5.5rem + env(safe-area-inset-top, 0px));
   z-index: 25;
+  box-sizing: border-box;
   display: flex;
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin-top: 0;
   overflow-x: auto;
   padding: 0.65rem 1rem;
+  min-height: 64px;
   border-top: 1px solid rgba(231, 215, 198, 0.64);
   border-bottom: 1px solid rgba(231, 215, 198, 0.64);
   background: rgba(255, 248, 239, 0.9);

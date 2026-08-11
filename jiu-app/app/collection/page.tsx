@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BIRDS, Bird, CATEGORY_LABELS, FragmentType } from '@/lib/constants';
 import { useGlobalStore } from '@/stores/globalStore';
@@ -71,8 +71,53 @@ export default function CollectionPage() {
   const [showFragmentGuide, setShowFragmentGuide] = useState(false);
   const [activeCategory, setActiveCategory] =
     useState<(typeof CATEGORIES)[number]>('cute');
+  const categoryNavRef = useRef<HTMLElement | null>(null);
+  const categoryRefs = useRef<Record<(typeof CATEGORIES)[number], HTMLElement | null>>({
+    cute: null,
+    abstract: null,
+    mystery: null,
+  });
   const currentBird = BIRDS.find((bird) => bird.id === currentBirdId) ?? BIRDS[0];
   const discoveredCount = BIRDS.filter((bird) => unlockedBirds.includes(bird.id)).length;
+
+  useEffect(() => {
+    let frame = 0;
+    const syncActiveCategory = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const anchor = categoryNavRef.current?.getBoundingClientRect().bottom ?? 0;
+        let visibleCategory: (typeof CATEGORIES)[number] = CATEGORIES[0];
+        let largestVisibleArea = 0;
+
+        for (const category of CATEGORIES) {
+          const section = categoryRefs.current[category];
+          if (!section) continue;
+          const bounds = section.getBoundingClientRect();
+          const visibleArea = Math.max(
+            0,
+            Math.min(bounds.bottom, window.innerHeight) - Math.max(bounds.top, anchor),
+          );
+          if (visibleArea > largestVisibleArea) {
+            largestVisibleArea = visibleArea;
+            visibleCategory = category;
+          }
+        }
+
+        setActiveCategory((current) =>
+          current === visibleCategory ? current : visibleCategory,
+        );
+      });
+    };
+
+    syncActiveCategory();
+    window.addEventListener('scroll', syncActiveCategory, { passive: true });
+    window.addEventListener('resize', syncActiveCategory);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', syncActiveCategory);
+      window.removeEventListener('resize', syncActiveCategory);
+    };
+  }, []);
 
   const jumpToCategory = (category: (typeof CATEGORIES)[number]) => {
     setActiveCategory(category);
@@ -122,6 +167,23 @@ export default function CollectionPage() {
         />
       </section>
 
+      <nav ref={categoryNavRef} className={styles.categoryNav} aria-label="鸟类分类">
+        {CATEGORIES.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => jumpToCategory(category)}
+            className={`min-h-10 whitespace-nowrap rounded-full px-4 text-xs font-extrabold transition ${
+              activeCategory === category
+                ? 'bg-[#2C3E50] text-white shadow-md'
+                : 'bg-white/80 text-[#75685D]'
+            }`}
+          >
+            {CATEGORY_LABELS[category]}
+          </button>
+        ))}
+      </nav>
+
       <section className="px-4 pt-4" aria-labelledby="fragment-wallet-title">
         <div className="mb-2.5 flex items-center justify-between">
           <h2 id="fragment-wallet-title" className="text-sm font-black text-[#374754]">
@@ -161,23 +223,6 @@ export default function CollectionPage() {
         </button>
       </section>
 
-      <nav className={styles.categoryNav} aria-label="鸟类分类">
-        {CATEGORIES.map((category) => (
-          <button
-            key={category}
-            type="button"
-            onClick={() => jumpToCategory(category)}
-            className={`min-h-10 whitespace-nowrap rounded-full px-4 text-xs font-extrabold transition ${
-              activeCategory === category
-                ? 'bg-[#2C3E50] text-white shadow-md'
-                : 'bg-white/80 text-[#75685D]'
-            }`}
-          >
-            {CATEGORY_LABELS[category]}
-          </button>
-        ))}
-      </nav>
-
       <div className="space-y-4 px-3 pb-10">
         {CATEGORIES.map((category) => {
           const birds = BIRDS.filter((bird) => bird.category === category);
@@ -188,6 +233,9 @@ export default function CollectionPage() {
             <section
               key={category}
               id={`collection-${category}`}
+              ref={(element) => {
+                categoryRefs.current[category] = element;
+              }}
               className={`${styles.categorySection} ${meta.className}`}
             >
               <div className={styles.categoryDecoration} aria-hidden="true" />
