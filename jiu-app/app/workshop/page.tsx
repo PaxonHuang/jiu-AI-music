@@ -24,12 +24,22 @@ type LyricsMode = 'ai' | 'write' | 'continue';
 type WorkshopView = 'create' | 'generating' | 'result';
 type Voice = 'female' | 'male';
 
+type TrackMode = 'instrumental' | 'vocal-stub';
+/**
+ * Vocal generation is temporarily disabled (字节火山限流/合规 issue).
+ * Switch the UI tab to 'vocal-stub' to show a "coming soon" placeholder.
+ * Keep `trackMode === 'instrumental'` as the only path that calls GenBGM.
+ * When the upstream policy lifts, restore the lyrics UI under 'vocal'.
+ */
+const TRACK_MODES: readonly TrackMode[] = ['instrumental', 'vocal-stub'] as const;
+
 interface Draft {
   title: string;
   idea: string;
   lyrics: string;
   lyricsMode: LyricsMode;
   instrumental: boolean;
+  trackMode: TrackMode;
   genre: string;
   mood: string;
   voice: Voice;
@@ -77,7 +87,8 @@ const DEFAULT_DRAFT: Draft = {
   idea: '',
   lyrics: '',
   lyricsMode: 'ai',
-  instrumental: false,
+  instrumental: true,
+  trackMode: 'instrumental',
   genre: 'pop',
   mood: 'happy',
   voice: 'female',
@@ -190,6 +201,10 @@ export default function WorkshopPage() {
   }, [toast]);
 
   const isReady = useMemo(() => {
+    // Vocal generation is temporarily disabled — never enable submit on the
+    // vocal-stub tab. Without this guard, the button would briefly become
+    // enabled via the instrumental branch before the tab switch lands.
+    if (draft.trackMode === 'vocal-stub') return false;
     if (draft.instrumental) return Boolean(draft.idea.trim() || true); // instrumental always ready (text is required server-side)
     if (draft.lyricsMode === 'ai') return Boolean(draft.idea.trim() || draft.lyrics.trim());
     return Boolean(draft.lyrics.trim());
@@ -605,16 +620,44 @@ export default function WorkshopPage() {
                     <p className="mt-0.5 text-xs text-[#8A7666]">一句话也可以，小鸟会帮你写完整</p>
                   </div>
                 </div>
-                <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-bold text-[#6B7280]">
-                  纯音乐
-                  <input
-                    type="checkbox"
-                    checked={draft.instrumental}
-                    onChange={(event) => updateDraft('instrumental', event.target.checked)}
-                    className="peer sr-only"
-                  />
-                  <span className="relative h-7 w-12 rounded-full bg-[#D8D8D8] transition peer-checked:bg-[#52715E] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#52715E] after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition peer-checked:after:translate-x-5" />
-                </label>
+                <div
+                  role="tablist"
+                  aria-label="音乐类型"
+                  className="flex shrink-0 rounded-full bg-[#F2EAD9] p-0.5"
+                >
+                  {([
+                    ['instrumental', '纯音乐'],
+                    ['vocal-stub', '歌词/人声'],
+                  ] as const).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={draft.trackMode === id}
+                      onClick={() => {
+                        if (id === 'vocal-stub') {
+                          setToast('功能马上上线，敬请期待');
+                        }
+                        setDraft((current) => ({
+                          ...current,
+                          trackMode: id,
+                          // Keep instrumental flag in sync so existing UI
+                          // (lyrics block, voice picker) collapses when vocal-stub.
+                          instrumental: id === 'instrumental' ? true : current.instrumental,
+                        }));
+                      }}
+                      className={`min-h-8 whitespace-nowrap rounded-full px-3 text-xs font-extrabold transition ${
+                        draft.trackMode === id
+                          ? id === 'instrumental'
+                            ? 'bg-white text-[#52715E] shadow-sm'
+                            : 'bg-white text-[#E87824] shadow-sm'
+                          : 'text-[#8A7666]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-4 p-4">
@@ -736,6 +779,8 @@ export default function WorkshopPage() {
               </div>
             </section>
 
+            {draft.trackMode === 'instrumental' && (
+              <>
             <section className="jiu-card p-4">
               <div className="mb-4 flex gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#52715E] text-sm font-black text-white">2</span>
@@ -841,6 +886,32 @@ export default function WorkshopPage() {
                 </div>
               </fieldset>
             </section>
+              </>
+            )}
+
+            {draft.trackMode === 'vocal-stub' && (
+              <section className="jiu-card flex flex-col items-center gap-3 p-8 text-center">
+                <div className="text-4xl">🐦🎤</div>
+                <h2 className="text-lg font-extrabold text-[#263746]">歌词/人声即将上线</h2>
+                <p className="max-w-[280px] text-sm leading-6 text-[#8A7666]">
+                  我们正在准备带歌词的人声歌曲，让小鸟唱出你写的小故事。请先用「纯音乐」创作一段旋律，敬请期待。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft((current) => ({
+                      ...current,
+                      trackMode: 'instrumental',
+                      instrumental: true,
+                    }));
+                    setToast('已切换到纯音乐');
+                  }}
+                  className="mt-2 min-h-11 rounded-full bg-gradient-to-r from-[#FF9F43] to-[#F47B43] px-6 text-sm font-black text-white shadow-lg shadow-orange-200"
+                >
+                  去创作纯音乐
+                </button>
+              </section>
+            )}
           </motion.div>
         )}
 

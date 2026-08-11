@@ -18,7 +18,9 @@ VALUES
   ('seed-post-0003', 'seed-user-deer',    '我给我的小猫写了一首歌',     'approved', 'published', 5, 0, 0, '2026-08-06T21:00:00.000Z', '2026-08-06T21:00:00.000Z'),
   ('seed-post-0004', 'seed-user-panda',   '月光下的摇篮曲，安静温柔',   'approved', 'published', 1, 0, 0, '2026-08-06T12:00:00.000Z', '2026-08-06T12:00:00.000Z'),
   ('seed-post-0005', 'seed-user-lark',    '放学看到彩虹，做成了歌',     'approved', 'published', 4, 0, 0, '2026-08-05T09:00:00.000Z', '2026-08-05T09:00:00.000Z'),
-  ('seed-post-0006', 'seed-user-owl',     '游乐园的一天，好开心',       'approved', 'published', 0, 0, 0, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z');
+  ('seed-post-0006', 'seed-user-owl',     '游乐园的一天，好开心',       'approved', 'published', 0, 0, 0, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
+  ('seed-post-0007', 'seed-user-dolphin', '🌸 今天和妈妈去公园写生，发现池塘里的小鱼会自己挑颜色', 'approved', 'published', 2, 0, 0, '2026-08-08T07:30:00.000Z', '2026-08-08T07:30:00.000Z'),
+  ('seed-post-0008', 'seed-user-deer',    '☕ 爸爸说这周学了一首很老的歌，等下次听我唱给你们听',   'approved', 'published', 1, 0, 0, '2026-08-09T18:20:00.000Z', '2026-08-09T18:20:00.000Z');
 
 INSERT OR IGNORE INTO community_post_music (post_id, user_id, provider_task_id) VALUES
   ('seed-post-0001', 'seed-user-lark',    '202608436498118849069057'),
@@ -27,6 +29,7 @@ INSERT OR IGNORE INTO community_post_music (post_id, user_id, provider_task_id) 
   ('seed-post-0004', 'seed-user-panda',   '202608436307331192455169'),
   ('seed-post-0005', 'seed-user-lark',    '202608436283529014280193'),
   ('seed-post-0006', 'seed-user-owl',     '202608436256726319104001');
+-- seed-post-0007 and seed-post-0008 are pure-text posts (no community_post_music row).
 
 -- 点赞数要与 likes 表一致(toggleLike 会从表重算),这样热门排序和取消点赞都正确
 INSERT OR IGNORE INTO community_post_likes (post_id, user_id, created_at) VALUES
@@ -44,4 +47,7 @@ INSERT OR IGNORE INTO community_post_likes (post_id, user_id, created_at) VALUES
   ('seed-post-0005', 'seed-user-dolphin', '2026-08-05T10:00:00.000Z'),
   ('seed-post-0005', 'seed-user-deer',    '2026-08-05T10:10:00.000Z'),
   ('seed-post-0005', 'seed-user-panda',   '2026-08-05T10:20:00.000Z'),
-  ('seed-post-0005', 'seed-user-owl',     '2026-08-05T10:30:00.000Z');
+  ('seed-post-0005', 'seed-user-owl',     '2026-08-05T10:30:00.000Z'),
+  ('seed-post-0007', 'seed-user-lark',    '2026-08-08T08:00:00.000Z'),
+  ('seed-post-0007', 'seed-user-panda',   '2026-08-08T08:10:00.000Z'),
+  ('seed-post-0008', 'seed-user-owl',     '2026-08-09T19:00:00.000Z');
