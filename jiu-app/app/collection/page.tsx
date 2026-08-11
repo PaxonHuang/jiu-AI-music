@@ -160,6 +160,46 @@ export default function CollectionPage() {
           >
             认识我的伙伴
           </button>
+          {/* Discovery progress — visible feedback for the bird hunt. */}
+          {discoveredCount === 0 ? (
+            <Link
+              href="/academy"
+              className="mt-3 inline-flex min-h-9 items-center gap-1 rounded-full bg-white/85 px-4 text-[11px] font-extrabold text-[#52715E] shadow-sm ring-1 ring-[#52715E]/20"
+            >
+              去学院找第一只鸟 →
+            </Link>
+          ) : (
+            <div className="mt-3 flex items-center gap-2">
+              <div
+                className="relative h-7 w-7"
+                aria-hidden="true"
+                title={`已发现 ${discoveredCount}/${BIRDS.length} 只鸟`}
+              >
+                <svg viewBox="0 0 28 28" className="h-full w-full -rotate-90">
+                  <circle
+                    cx="14" cy="14" r="11"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.7)"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="14" cy="14" r="11"
+                    fill="none"
+                    stroke="#52715E"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(discoveredCount / BIRDS.length) * 69.115} 69.115`}
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-[#52715E]">
+                  {discoveredCount}
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-[#52715E]/85">
+                已发现 {discoveredCount} / {BIRDS.length} 只
+              </span>
+            </div>
+          )}
         </div>
         <BirdPortrait
           bird={currentBird}
