@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GENRE_LABELS, INSTRUMENT_IDS, INSTRUMENT_LABELS, MOOD_LABELS } from '@/lib/constants';
 import { getDeviceId, ensureSession } from '@/lib/client/session';
+import {
+  getFavoriteCount,
+  isFavoritedBy,
+  toggleFavorite,
+  useMockUser,
+} from '@/lib/client/mock-social';
 import { readWorkshopWorks } from '@/lib/workshop/storage';
 import { PageHeader } from '@/components/layout/PageHeader';
 
@@ -16,6 +22,9 @@ interface Work {
   style: string;
   stars: number;
   starred: boolean;
+  favorites: number;
+  favorited: boolean;
+  comments: number;
   audio?: string;
   caption?: string;
   emoji?: string;
@@ -42,15 +51,15 @@ interface ServerPost {
 type Sort = 'latest' | 'hot';
 
 const DEMO_WORKS: Work[] = [
-  { id: 1, key: 'demo-1', title: '乡间小路', author: '小明', time: '2 分钟前', style: '😊 欢快', stars: 12, starred: false },
-  { id: 2, key: 'demo-2', title: '山里的风', author: '小红', time: '1 小时前', style: '🌙 安静', stars: 8, starred: false },
-  { id: 3, key: 'demo-3', title: '梦中的鸟', author: '小刚', time: '3 小时前', style: '✨ 梦幻', stars: 5, starred: false },
-  { id: 4, key: 'demo-4', title: '溪水叮咚', author: '小美', time: '5 小时前', style: '🌙 安静', stars: 3, starred: false },
+  { id: 1, key: 'demo-1', title: '乡间小路', author: '小明', time: '2 分钟前', style: '😊 欢快', stars: 12, starred: false, favorites: 4, favorited: false, comments: 2 },
+  { id: 2, key: 'demo-2', title: '山里的风', author: '小红', time: '1 小时前', style: '🌙 安静', stars: 8, starred: false, favorites: 1, favorited: false, comments: 0 },
+  { id: 3, key: 'demo-3', title: '梦中的鸟', author: '小刚', time: '3 小时前', style: '✨ 梦幻', stars: 5, starred: false, favorites: 0, favorited: false, comments: 1 },
+  { id: 4, key: 'demo-4', title: '溪水叮咚', author: '小美', time: '5 小时前', style: '🌙 安静', stars: 3, starred: false, favorites: 0, favorited: false, comments: 0 },
 ];
 
 const PUBLISH_EMOJIS = ['🎵', '🐱', '🌈', '🌙', '🌊', '🌸', '⭐', '🎡'];
 
-function postToWork(post: ServerPost): Work {
+function postToWork(post: ServerPost, myUserId: string | null): Work {
   return {
     id: 0,
     key: `post-${post.id}`,
@@ -62,6 +71,9 @@ function postToWork(post: ServerPost): Work {
     style: '🌍 大家创作',
     stars: post.likeCount,
     starred: post.liked,
+    favorites: post.id ? getFavoriteCount(post.id) : 0,
+    favorited: post.id && myUserId ? isFavoritedBy(post.id, myUserId) : false,
+    comments: post.commentCount,
     audio: post.audioUrl ?? undefined,
   };
 }
@@ -78,6 +90,7 @@ function formatTime(iso: string): string {
 }
 
 export default function CommunityPage() {
+  const mockUser = useMockUser();
   const [works, setWorks] = useState<Work[]>(DEMO_WORKS);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
@@ -87,6 +100,8 @@ export default function CommunityPage() {
   const [publishEmoji, setPublishEmoji] = useState('🎵');
   const [publishing, setPublishing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const effectiveUserId = mockUser?.id ?? myUserId;
 
   const loadFeed = useCallback(
     async (sortValue: Sort) => {
@@ -104,6 +119,9 @@ export default function CommunityPage() {
           style: `${MOOD_LABELS[work.mood] ?? '原创'} · ${GENRE_LABELS[work.genre] ?? '音乐'}`,
           stars: 0,
           starred: false,
+          favorites: 0,
+          favorited: false,
+          comments: 0,
           audio: work.audio,
           caption: work.caption,
           emoji: work.emoji,
@@ -119,7 +137,7 @@ export default function CommunityPage() {
         const response = await fetch(`/api/community/posts?limit=20&sort=${sortValue}`);
         if (!response.ok) throw new Error(`feed ${response.status}`);
         const payload = (await response.json()) as { posts: ServerPost[] };
-        const serverWorks = (payload.posts ?? []).map(postToWork);
+        const serverWorks = (payload.posts ?? []).map((post) => postToWork(post, current.id));
         // Real posts outrank the static demo cards; demos only show when the
         // feed is empty so a fresh demo never looks dead.
         setWorks(
@@ -188,6 +206,33 @@ export default function CommunityPage() {
       prev.map((w) =>
         w.key === work.key
           ? { ...w, starred: !w.starred, stars: w.starred ? w.stars - 1 : w.stars + 1 }
+          : w,
+      ),
+    );
+  };
+
+  const handleFavorite = (work: Work) => {
+    if (!work.postId) {
+      // Local work has no server post — favorites are mocked locally too.
+      setWorks((prev) =>
+        prev.map((w) =>
+          w.key === work.key
+            ? {
+                ...w,
+                favorited: !w.favorited,
+                favorites: w.favorited ? Math.max(0, w.favorites - 1) : w.favorites + 1,
+              }
+            : w,
+        ),
+      );
+      return;
+    }
+    if (!effectiveUserId) return;
+    const result = toggleFavorite(work.postId, effectiveUserId, work.authorId ?? '');
+    setWorks((prev) =>
+      prev.map((w) =>
+        w.key === work.key
+          ? { ...w, favorited: result.favorited, favorites: result.count }
           : w,
       ),
     );
@@ -318,10 +363,32 @@ export default function CommunityPage() {
                     className={`flex items-center gap-1 text-sm transition-all ${
                       work.starred ? 'text-[#FF9F43]' : 'text-gray-400'
                     }`}
+                    aria-label="点赞"
                   >
                     <span className="text-lg">{work.starred ? '⭐' : '☆'}</span>
                     <span>{work.stars}</span>
                   </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 1.3 }}
+                    onClick={() => handleFavorite(work)}
+                    className={`flex items-center gap-1 text-sm transition-all ${
+                      work.favorited ? 'text-[#E47A24]' : 'text-gray-400'
+                    }`}
+                    aria-label="收藏"
+                  >
+                    <span className="text-lg">{work.favorited ? '★' : '☆'}</span>
+                    <span>{work.favorites}</span>
+                  </motion.button>
+                  {work.postId && (
+                    <Link
+                      href={`/community/${work.postId}`}
+                      className="flex items-center gap-1 text-sm text-gray-400 transition-all hover:text-[#E47A24]"
+                      aria-label="查看评论"
+                    >
+                      <span className="text-lg">💬</span>
+                      <span>{work.comments}</span>
+                    </Link>
+                  )}
                   {work.postId && work.authorId === myUserId && (
                     <button
                       type="button"
