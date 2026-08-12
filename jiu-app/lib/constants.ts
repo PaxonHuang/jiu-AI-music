@@ -65,7 +65,7 @@ export const BIRDS: Bird[] = [
     avatarGray: '/birds/penduline-gray.svg',
     atlasPosition: { column: 2, row: 0 },
     fragmentType: '绒羽',
-    fragmentNeeded: 10,
+    fragmentNeeded: 18,
     birdCall: '',
   },
   {

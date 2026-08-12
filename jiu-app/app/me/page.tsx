@@ -61,7 +61,7 @@ function notificationText(type: StoredNotification['type']): string {
 
 export default function MePage() {
   const router = useRouter();
-  const user = useMockUser();
+  const mockUser = useMockUser();
   const fragments = useMockSlice<{ 绒羽: number; 怪羽: number; 暗羽: number }>(() => {
     if (typeof window === 'undefined') return { 绒羽: 0, 怪羽: 0, 暗羽: 0 };
     const raw = window.localStorage.getItem('jiu_state');
@@ -85,21 +85,22 @@ export default function MePage() {
     }
   });
   const notifications = useMockSlice<StoredNotification[]>(() =>
-    user ? listNotifications(user.id) : [],
+    mockUser ? listNotifications(mockUser.id) : [],
   );
 
   const [works, setWorks] = useState<PublishedWork[]>([]);
   const [posts, setPosts] = useState<MyPost[]>([]);
   const [showPosts, setShowPosts] = useState(false);
   const [editingName, setEditingName] = useState(false);
-  const [name, setName] = useState(user?.displayName ?? '');
+  const [name, setName] = useState(mockUser?.displayName ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [joinDate, setJoinDate] = useState('');
+  const [serverDisplayName, setServerDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
-    setName(user?.displayName ?? '');
-  }, [user?.displayName]);
+    setName(mockUser?.displayName ?? '');
+  }, [mockUser?.displayName]);
 
   const fetchMyPosts = useCallback(async () => {
     try {
@@ -112,20 +113,20 @@ export default function MePage() {
     }
   }, []);
 
+  // Always load workshop works + community posts for the current device.
+  // The mine=1 endpoint reads the session cookie so it works for both guest
+  // (server) users and email-mock users. Workshop works are keyed by deviceId.
+  // No guard on mockUser — that was the bug that hid works/posts from guests.
   useEffect(() => {
-    if (!user) return;
-    if (user.createdAt) setJoinDate(formatJoinDate(user.createdAt));
     void fetchMyPosts();
     const deviceId =
       typeof window !== 'undefined' ? window.localStorage.getItem('jiu_user_id') : null;
     void readWorkshopWorks(deviceId).then(setWorks);
-    // ensureSession is kept for the legacy guest path so we get a server user
-    // id to attach to community posts. Mock users without server backing get
-    // their posts locally on the same fetch flow via mine=1 returning empty.
     void ensureSession().then((session) => {
-      if (session?.createdAt && !joinDate) setJoinDate(formatJoinDate(session.createdAt));
+      if (session?.createdAt) setJoinDate(formatJoinDate(session.createdAt));
+      if (session?.displayName) setServerDisplayName(session.displayName);
     });
-  }, [user, fetchMyPosts, joinDate]);
+  }, [fetchMyPosts]);
 
   const removeWork = async (id: number) => {
     const deviceId =
@@ -170,7 +171,7 @@ export default function MePage() {
   };
 
   const displayName =
-    user?.displayName ?? (user?.type === 'guest' ? '游客创作者' : '啾啾音乐人');
+    mockUser?.displayName ?? serverDisplayName ?? (mockUser ? '啾啾音乐人' : '游客创作者');
   const totalFragments = Object.values(fragments).reduce((sum, value) => sum + value, 0);
 
   return (
@@ -182,10 +183,10 @@ export default function MePage() {
           className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#DFF3EF] text-2xl shadow-md"
           aria-label="修改头像 / 名字"
         >
-          {user?.avatarUrl ? (
+          {mockUser?.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={user.avatarUrl}
+              src={mockUser.avatarUrl}
               alt="我的头像"
               className="h-full w-full object-cover"
             />
@@ -202,24 +203,30 @@ export default function MePage() {
           </p>
           <div className="mt-1 flex items-center gap-2">
             <h1 className="truncate text-[22px] font-black text-[#263746]">{displayName}</h1>
-            <button
-              type="button"
-              onClick={() => setEditingName(true)}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-sm shadow-sm"
-              aria-label="编辑名字"
-            >
-              ✎
-            </button>
+            {mockUser ? (
+              <button
+                type="button"
+                onClick={() => setEditingName(true)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-sm shadow-sm"
+                aria-label="编辑名字"
+              >
+                ✎
+              </button>
+            ) : null}
           </div>
           <p className="mt-0.5 truncate text-xs text-[#75685D]">
-            {user?.type === 'guest'
-              ? '游客模式，作品会绑定到当前身份'
-              : '啾啾音乐创作者'}
+            {mockUser
+              ? mockUser.type === 'email'
+                ? '啾啾音乐创作者'
+                : '游客模式，作品会绑定到当前身份'
+              : serverDisplayName
+                ? '游客模式，作品会绑定到当前身份'
+                : '啾世界的小游客'}
           </p>
         </div>
       </header>
 
-      {user?.type === 'guest' && (
+      {!mockUser && (
         <section className="mt-4 rounded-3xl border border-[#F2D1AD] bg-gradient-to-r from-[#FFF1D8] to-[#EAF5EA] p-4 shadow-sm">
           <p className="text-sm font-black text-[#4A3B32]">把这段创作旅程保存下来</p>
           <p className="mt-1 text-xs leading-5 text-[#75685D]">
@@ -234,7 +241,7 @@ export default function MePage() {
         </section>
       )}
 
-      {user?.type === 'email' && (
+      {mockUser?.type === 'email' && (
         <button
           type="button"
           disabled={saving}
@@ -271,7 +278,7 @@ export default function MePage() {
               type="button"
               onClick={() => {
                 setEditingName(false);
-                setName(user?.displayName ?? '');
+                setName(mockUser?.displayName ?? '');
               }}
               className="rounded-2xl bg-[#F0E9E1] px-3 text-sm font-bold text-[#75685D]"
             >
@@ -382,7 +389,7 @@ export default function MePage() {
 
       <section className="jiu-card mt-4 p-5">
         <h2 className="font-black text-[#352B25]">消息中心</h2>
-        {user ? (
+        {mockUser ? (
           notifications.length === 0 ? (
             <p className="mt-4 text-sm text-[#8A7666]">暂时没有新的互动消息。</p>
           ) : (
@@ -418,7 +425,7 @@ export default function MePage() {
         </Link>
       </section>
 
-      {!user && joinDate && (
+      {!mockUser && joinDate && (
         <p className="mt-4 text-center text-xs text-[#A49488]">{joinDate}</p>
       )}
     </main>

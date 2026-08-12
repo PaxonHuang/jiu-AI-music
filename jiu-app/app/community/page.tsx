@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GENRE_LABELS, INSTRUMENT_IDS, INSTRUMENT_LABELS, MOOD_LABELS } from '@/lib/constants';
@@ -92,14 +92,12 @@ function formatTime(iso: string): string {
 export default function CommunityPage() {
   const mockUser = useMockUser();
   const [works, setWorks] = useState<Work[]>(DEMO_WORKS);
-  const [playingId, setPlayingId] = useState<string | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>('latest');
   const [showPublish, setShowPublish] = useState(false);
   const [publishText, setPublishText] = useState('');
   const [publishEmoji, setPublishEmoji] = useState('🎵');
   const [publishing, setPublishing] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const effectiveUserId = mockUser?.id ?? myUserId;
 
@@ -154,9 +152,6 @@ export default function CommunityPage() {
 
   useEffect(() => {
     void loadFeed(sort);
-    return () => {
-      audioRef.current?.pause();
-    };
   }, [sort, loadFeed]);
 
   const submitPublish = async () => {
@@ -250,21 +245,6 @@ export default function CommunityPage() {
     }
   };
 
-  const togglePlay = (work: Work) => {
-    if (!work.audio) return;
-    if (playingId === work.key && audioRef.current) {
-      audioRef.current.pause();
-      setPlayingId(null);
-      return;
-    }
-    audioRef.current?.pause();
-    const audio = new Audio(work.audio);
-    audioRef.current = audio;
-    audio.onended = () => setPlayingId(null);
-    void audio.play();
-    setPlayingId(work.key);
-  };
-
   return (
     <div className="min-h-screen bg-[#FFF8F0] pb-20">
       <PageHeader
@@ -328,20 +308,18 @@ export default function CommunityPage() {
                 </div>
               </div>
 
-              <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center gap-3 mb-3">
-                <button
-                  type="button"
-                  onClick={() => togglePlay(work)}
-                  disabled={!work.audio}
-                  aria-label={playingId === work.key ? `暂停${work.title}` : `播放${work.title}`}
-                  className="w-8 h-8 rounded-full bg-[#FF9F43] text-white flex items-center justify-center text-sm disabled:opacity-70"
-                >
-                  {playingId === work.key ? 'Ⅱ' : '▶'}
-                </button>
-                <div className="flex-1 h-1.5 bg-gray-200 rounded-full">
-                  <div className={`h-full bg-[#FF9F43] rounded-full transition-all ${playingId === work.key ? 'w-2/3' : 'w-1/3'}`} />
-                </div>
-                {work.audio ? <span className="text-[10px] font-bold text-gray-400">可播放</span> : null}
+              <div className="bg-gray-50 rounded-xl px-4 py-3 mb-3">
+                {work.audio ? (
+                  // eslint-disable-next-line jsx-a11y/media-has-caption
+                  <audio
+                    controls
+                    preload="none"
+                    src={work.audio}
+                    className="w-full"
+                  />
+                ) : (
+                  <p className="text-xs font-bold text-gray-400">音频不可播放</p>
+                )}
               </div>
 
               <div className="flex items-center justify-between gap-2">
