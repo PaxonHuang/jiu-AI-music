@@ -15,6 +15,7 @@ import {
   useMockUser,
   type CommentNode,
 } from '@/lib/client/mock-social';
+import { generateAvatar } from '@/lib/client/avatars';
 
 interface Post {
   id: string;
@@ -187,7 +188,7 @@ export default function CommunityPostPage({
         <div className="rounded-3xl bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#DFF3EF] text-xl">
+              <div className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-xl ${generateAvatar(post.userId).tone}`}>
                 {post.authorAvatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -196,7 +197,7 @@ export default function CommunityPostPage({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  '🐦'
+                  generateAvatar(post.userId).emoji
                 )}
               </div>
               <div>

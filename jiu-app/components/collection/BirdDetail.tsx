@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bird } from '@/lib/constants';
 import { useGlobalStore } from '@/stores/globalStore';
@@ -26,9 +26,7 @@ export function BirdDetail({ bird, onClose }: BirdDetailProps) {
     setCurrentBird,
     exchangeBird,
   } = useGlobalStore();
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioError, setAudioError] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [showBirdCallToast, setShowBirdCallToast] = useState(false);
   const isUnlocked = unlockedBirds.includes(bird.id);
   const isCurrent = currentBirdId === bird.id;
   const fragmentCount = bird.fragmentType ? fragments[bird.fragmentType] : 0;
@@ -52,34 +50,14 @@ export function BirdDetail({ bird, onClose }: BirdDetailProps) {
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
-      audioRef.current?.pause();
     };
   }, [onClose]);
 
   const toggleBirdCall = () => {
-    if (!bird.birdCall) return;
-
-    if (!audioRef.current) {
-      const audio = new Audio(bird.birdCall);
-      audio.addEventListener('ended', () => setIsPlaying(false));
-      audio.addEventListener('error', () => {
-        setIsPlaying(false);
-        setAudioError(true);
-      });
-      audioRef.current = audio;
-    }
-
-    if (isPlaying) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsPlaying(false);
-      return;
-    }
-
-    setAudioError(false);
-    void audioRef.current.play()
-      .then(() => setIsPlaying(true))
-      .catch(() => setAudioError(true));
+    // Bird calls are not yet recorded. Per PRD update (2026-08), the button
+    // surfaces a placeholder toast instead of attempting playback so users
+    // understand the feature is reserved for a future release.
+    setShowBirdCallToast(true);
   };
 
   return (
@@ -164,34 +142,28 @@ export function BirdDetail({ bird, onClose }: BirdDetailProps) {
                 : 'cursor-not-allowed bg-[#EAE4DD] text-[#8B8279]'
             }`}
           >
-            <span className={`flex h-9 w-9 items-center justify-center rounded-full text-base ${
-              bird.birdCall ? 'bg-white/14' : 'bg-white/50'
-            }`}>
-              {isPlaying ? '■' : '▶'}
+            <span className="flex h-9 w-9 items-center justify-center rounded-full text-base bg-white/14">
+              🎵
             </span>
             <span className="flex-1">
-              <span className="block text-sm font-extrabold">
-                {bird.birdCall ? (isPlaying ? '正在播放鸟叫声' : '听听它的声音') : '鸟叫声正在收录'}
-              </span>
-              <span className={`mt-0.5 block text-[11px] ${
-                bird.birdCall ? 'text-white/65' : 'text-[#9A9188]'
-              }`}>
-                {audioError ? '暂时无法播放，请稍后再试' : bird.sound}
-              </span>
+              <span className="block text-sm font-extrabold">听听它的声音</span>
+              <span className="mt-0.5 block text-[11px] text-white/65">{bird.sound}</span>
             </span>
-            {isPlaying && (
-              <span className="flex items-end gap-0.5" aria-hidden="true">
-                {[10, 18, 13, 21, 15].map((height, index) => (
-                  <motion.i
-                    key={index}
-                    className="w-0.5 rounded-full bg-[#FFD18A]"
-                    animate={{ height: [6, height, 6] }}
-                    transition={{ duration: 0.7, repeat: Infinity, delay: index * 0.08 }}
-                  />
-                ))}
-              </span>
-            )}
+            <span className="rounded-full bg-white/14 px-2 py-0.5 text-[10px] font-black tracking-wide text-white">
+              即将上线
+            </span>
           </button>
+
+          {showBirdCallToast && (
+            <div
+              role="status"
+              className="fixed inset-x-0 bottom-24 z-[80] mx-auto flex max-w-xs justify-center px-4"
+            >
+              <div className="rounded-2xl bg-[#2C3E50] px-4 py-3 text-sm font-extrabold text-white shadow-xl">
+                伙伴声音马上上线，敬请期待
+              </div>
+            </div>
+          )}
 
           <div className="mt-6">
             <h3 className="text-base font-black text-[#2C3E50]">认识一下这位朋友</h3>

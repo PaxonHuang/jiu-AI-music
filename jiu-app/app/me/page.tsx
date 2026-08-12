@@ -12,6 +12,7 @@ import {
   useMockUser,
   type StoredNotification,
 } from '@/lib/client/mock-social';
+import { AVATAR_CHOICES, generateAvatar } from '@/lib/client/avatars';
 import { ensureSession } from '@/lib/client/session';
 import { GENRE_LABELS, MOOD_LABELS } from '@/lib/constants';
 import {
@@ -92,6 +93,7 @@ export default function MePage() {
   const [posts, setPosts] = useState<MyPost[]>([]);
   const [showPosts, setShowPosts] = useState(false);
   const [editingName, setEditingName] = useState(false);
+  const [pickingAvatar, setPickingAvatar] = useState(false);
   const [name, setName] = useState(mockUser?.displayName ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -179,9 +181,15 @@ export default function MePage() {
       <header className="jiu-header -mx-4 flex flex-row-reverse items-center gap-3 px-4">
         <button
           type="button"
-          onClick={() => setEditingName(true)}
-          className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#DFF3EF] text-2xl shadow-md"
-          aria-label="修改头像 / 名字"
+          onClick={() => {
+            if (!mockUser) {
+              setEditingName(true);
+              return;
+            }
+            setPickingAvatar(true);
+          }}
+          className={`relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white text-2xl shadow-md ${generateAvatar(mockUser?.id ?? '').tone}`}
+          aria-label="挑选头像"
         >
           {mockUser?.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -191,10 +199,10 @@ export default function MePage() {
               className="h-full w-full object-cover"
             />
           ) : (
-            '🐦'
+            generateAvatar(mockUser?.id ?? '').emoji
           )}
           <span className="absolute inset-x-0 bottom-0 bg-[#2C3E50]/75 py-0.5 text-center text-[9px] font-bold text-white">
-            修改
+            {mockUser ? '换头像' : '修改'}
           </span>
         </button>
         <div className="min-w-0 flex-1">
@@ -428,7 +436,78 @@ export default function MePage() {
       {!mockUser && joinDate && (
         <p className="mt-4 text-center text-xs text-[#A49488]">{joinDate}</p>
       )}
+
+      {pickingAvatar && mockUser && (
+        <AvatarPicker
+          currentEmoji={mockUser.avatarUrl ?? generateAvatar(mockUser.id).emoji}
+          onClose={() => setPickingAvatar(false)}
+          onPick={(emoji) => {
+            updateMockUser({ avatarUrl: emoji });
+            setPickingAvatar(false);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+function AvatarPicker({
+  currentEmoji,
+  onClose,
+  onPick,
+}: {
+  currentEmoji: string;
+  onClose: () => void;
+  onPick: (emoji: string) => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-[#16202A]/55 px-0 backdrop-blur-[2px]"
+      onClick={onClose}
+      role="presentation"
+    >
+      <section
+        className="w-full max-w-lg rounded-t-[30px] bg-[#FFF9F2] p-5 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="avatar-picker-title"
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 id="avatar-picker-title" className="text-lg font-black text-[#2C3E50]">
+            选一个头像
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg font-bold text-[#6F655D] shadow-sm"
+            aria-label="关闭选择器"
+          >
+            ×
+          </button>
+        </div>
+        <p className="text-xs font-bold text-[#75685D]">
+          当前头像 <span className="text-base">{currentEmoji}</span>，点下面的 emoji 替换。
+        </p>
+        <div className="mt-4 grid grid-cols-6 gap-3">
+          {AVATAR_CHOICES.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => onPick(emoji)}
+              className={`grid h-12 w-12 place-items-center rounded-2xl text-2xl transition active:scale-95 ${
+                emoji === currentEmoji
+                  ? 'bg-[#FF9F43] text-white shadow-[0_8px_20px_rgba(255,159,67,0.25)]'
+                  : 'bg-white text-[#4A3B32] shadow-sm ring-1 ring-[#F2E5D9]'
+              }`}
+              aria-label={`选 ${emoji} 作为头像`}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 

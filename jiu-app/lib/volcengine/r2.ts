@@ -8,7 +8,12 @@ interface R2BucketLike {
 }
 
 interface R2Binding {
-  get(key: string): Promise<{ body?: ReadableStream; httpMetadata?: { contentType?: string } } | null>;
+  get(key: string): Promise<{
+    body?: ReadableStream | null;
+    httpMetadata?: { contentType?: string };
+    size?: number;
+    etag?: string;
+  } | null>;
   put(key: string, value: ReadableStream | ArrayBuffer | string, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
 }
 

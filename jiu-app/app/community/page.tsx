@@ -10,6 +10,7 @@ import {
   toggleFavorite,
   useMockUser,
 } from '@/lib/client/mock-social';
+import { generateAvatar } from '@/lib/client/avatars';
 import { readWorkshopWorks } from '@/lib/workshop/storage';
 import { PageHeader } from '@/components/layout/PageHeader';
 
@@ -299,9 +300,16 @@ export default function CommunityPage() {
               className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50"
             >
               <div className="flex items-center gap-2 mb-2">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-orange-50 text-lg">
-                  {work.emoji ?? (work.postId ? '🌍' : '🎵')}
-                </span>
+                {(() => {
+                  const avatar = generateAvatar(work.authorId ?? work.key);
+                  return (
+                    <span
+                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg ${avatar.tone}`}
+                    >
+                      {avatar.emoji}
+                    </span>
+                  );
+                })()}
                 <div className="min-w-0">
                   <div className="truncate font-semibold text-gray-800">{work.title}</div>
                   <div className="text-xs text-gray-400">{work.author} · {work.time}</div>
