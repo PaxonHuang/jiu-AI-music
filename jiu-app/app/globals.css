@@ -1,14 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --color-primary: #FF9F43;
-  --color-secondary: #54A0FF;
+  --color-primary: #E47A24;
+  --color-secondary: #52715E;
+  --color-info: #54A0FF;
   --color-success: #2ED573;
   --color-error: #FF4757;
-  --color-bg: #FFF8F0;
-  --color-text: #2C3E50;
-  --color-text-secondary: #7F8C8D;
+  --color-bg: #FFF9F2;
+  --color-text: #263746;
+  --color-text-secondary: #75685D;
   --bottom-nav-height: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  --jiu-bg: #FFF9F2;
+  --jiu-ink: #263746;
+  --jiu-muted: #75685D;
+  --jiu-body: #67594E;
+  --jiu-orange: #E47A24;
+  --jiu-orange-soft: #FFF0D7;
+  --jiu-green: #52715E;
+  --jiu-border: rgba(225, 199, 173, 0.58);
+  --jiu-card-radius: 22px;
+  --jiu-card-shadow: 0 12px 30px rgba(73, 56, 38, 0.09);
 }
 
 * {
@@ -18,9 +29,123 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--jiu-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Shared mobile shell used by Collection and Workshop. */
+.jiu-page {
+  min-height: 100dvh;
+  padding-bottom: calc(var(--bottom-nav-height) + 1.25rem);
+  background:
+    radial-gradient(circle at 12% 4%, rgba(255, 214, 156, 0.26), transparent 24rem),
+    linear-gradient(180deg, #fff9f2 0%, #fff5e9 48%, #f8f2eb 100%);
+}
+
+.jiu-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  min-height: 64px;
+  padding: max(0.65rem, env(safe-area-inset-top)) 1rem 0.65rem;
+  border-bottom: 1px solid var(--jiu-border);
+  background: rgba(255, 249, 242, 0.9);
+  backdrop-filter: blur(18px);
+}
+
+.jiu-status-badge {
+  border: 1px solid #E8D5C2;
+  background: rgba(255, 255, 255, 0.76);
+  color: #795C44;
+  box-shadow: 0 4px 12px rgba(73, 56, 38, 0.05);
+}
+
+/* One measured header system keeps Academy, Workshop, Community and Collection aligned. */
+.jiu-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  min-height: 88px;
+  padding: max(0.65rem, env(safe-area-inset-top)) 1rem 0.65rem;
+  border-bottom: 1px solid var(--jiu-border);
+  background: rgba(255, 249, 242, 0.9);
+  backdrop-filter: blur(18px);
+}
+
+.jiu-page-header__row {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.jiu-page-header__eyebrow {
+  margin: 0;
+  color: #A77950;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.18em;
+}
+
+.jiu-page-header__title {
+  margin: 0.25rem 0 0;
+  color: #263746;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.jiu-page-header__subtitle {
+  margin: 0.125rem 0 0;
+  color: #67594E;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.jiu-page-header__right {
+  flex: 0 0 auto;
+}
+
+.jiu-page-header__children {
+  margin-top: 0.75rem;
+}
+
+/* Shared sticky tab-pill bar used directly below the page header. */
+.jiu-tab-bar {
+  position: sticky;
+  z-index: 20;
+  backdrop-filter: blur(18px);
+}
+
+.jiu-card {
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: var(--jiu-card-radius);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--jiu-card-shadow);
+}
+
+.jiu-partner-card {
+  position: relative;
+  display: flex;
+  min-height: 136px;
+  margin: 0.8rem 0.75rem 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  border-radius: 28px;
+  background:
+    linear-gradient(135deg, rgba(255, 232, 190, 0.92), rgba(230, 246, 230, 0.92)),
+    #f8e4c4;
+  box-shadow: 0 18px 45px rgba(91, 67, 43, 0.12);
+}
+
+.jiu-action-bar {
+  border-top: 1px solid var(--jiu-border);
+  background: rgba(255, 249, 242, 0.94);
+  backdrop-filter: blur(18px);
 }
 
 /* Hide scrollbar but keep scrollability */

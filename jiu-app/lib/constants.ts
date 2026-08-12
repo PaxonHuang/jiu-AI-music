@@ -65,7 +65,7 @@ export const BIRDS: Bird[] = [
     avatarGray: '/birds/penduline-gray.svg',
     atlasPosition: { column: 2, row: 0 },
     fragmentType: '绒羽',
-    fragmentNeeded: 10,
+    fragmentNeeded: 18,
     birdCall: '',
   },
   {
@@ -177,7 +177,7 @@ export type FragmentType = (typeof FRAGMENT_TYPES)[number];
 
 export const STYLES = [
   { id: 'happy', label: '😊 欢快', color: '#FF9F43' },
-  { id: 'quiet', label: '🌙 安静', color: '#54A0FF' },
+  { id: 'quiet', label: '🌙 安静', color: '#52715E' },
   { id: 'dreamy', label: '✨ 梦幻', color: '#A29BFE' },
 ] as const;
 
@@ -185,9 +185,9 @@ export type AcademyGameKey =
   | 'sound-elevator'
   | 'sound-relay'
   | 'sound-balance'
-  | 'heartbeat-drummer'
-  | 'note-race'
-  | 'rhythm-puzzle'
+  | 'rhythm-class'
+  | 'rhythm-tap'
+  | 'rhythm-echo'
   | 'note-town'
   | 'pitch-tower'
   | 'note-home';
@@ -233,25 +233,10 @@ export const LEVELS: AcademyLevel[] = [
     position: { x: 30, y: 90 },
   },
   {
-    id: 4,
+    id: 5,
     order: 2,
     stageId: 1,
     lesson: 2,
-    stageName: '听的世界',
-    name: '声音接力',
-    icon: '💧',
-    subtitle: '感受声音的长与短',
-    zone: '溪流小径',
-    companionTip: '有的声音像小溪一样长长的，有的像水滴一样短短的。',
-    game: 'sound-relay',
-    rewardType: '绒羽',
-    position: { x: 68, y: 81 },
-  },
-  {
-    id: 5,
-    order: 3,
-    stageId: 1,
-    lesson: 3,
     stageName: '听的世界',
     name: '声音天平',
     icon: '⚖️',
@@ -259,6 +244,21 @@ export const LEVELS: AcademyLevel[] = [
     zone: '向日葵田',
     companionTip: '声音有时像大象踩地一样重，有时像小猫走路一样轻。',
     game: 'sound-balance',
+    rewardType: '绒羽',
+    position: { x: 68, y: 81 },
+  },
+  {
+    id: 4,
+    order: 3,
+    stageId: 1,
+    lesson: 3,
+    stageName: '听的世界',
+    name: '长短回声',
+    icon: '💧',
+    subtitle: '感受声音的长与短',
+    zone: '溪流小径',
+    companionTip: '有的声音像小溪一样长长的，有的像水滴一样短短的。',
+    game: 'sound-relay',
     rewardType: '绒羽',
     position: { x: 31, y: 72 },
   },
@@ -268,12 +268,12 @@ export const LEVELS: AcademyLevel[] = [
     stageId: 2,
     lesson: 1,
     stageName: '节奏魔法',
-    name: '心跳鼓手',
+    name: '节奏小课堂',
     icon: '🥁',
     subtitle: '跟着节拍翻过山坡',
     zone: '风车山坡',
     companionTip: '把手放在胸口，音乐也有像心跳一样稳定的拍子。',
-    game: 'heartbeat-drummer',
+    game: 'rhythm-class',
     rewardType: '怪羽',
     position: { x: 69, y: 61 },
   },
@@ -283,12 +283,12 @@ export const LEVELS: AcademyLevel[] = [
     stageId: 2,
     lesson: 2,
     stageName: '节奏魔法',
-    name: '音符赛跑',
+    name: '节奏拍拍乐',
     icon: '🏃',
     subtitle: '认识走路拍和跑步拍',
     zone: '节拍跑道',
     companionTip: '四分音符像走路，八分音符像小跑，两步当一步。',
-    game: 'note-race',
+    game: 'rhythm-tap',
     rewardType: '怪羽',
     position: { x: 31, y: 52 },
   },
@@ -298,12 +298,12 @@ export const LEVELS: AcademyLevel[] = [
     stageId: 2,
     lesson: 3,
     stageName: '节奏魔法',
-    name: '节奏拼图',
+    name: '节奏回声',
     icon: '🧩',
     subtitle: '把音符拼成完整节奏',
     zone: '木桥工坊',
     companionTip: '把不同长度的木板拼在一起，就能搭出一座节奏桥啦！',
-    game: 'rhythm-puzzle',
+    game: 'rhythm-echo',
     rewardType: '怪羽',
     position: { x: 69, y: 43 },
   },
@@ -358,4 +358,43 @@ export const CATEGORY_LABELS: Record<string, string> = {
   cute: '小可爱',
   abstract: '抽象大师',
   mystery: '神秘来客',
+};
+
+// 工坊（workshop）表单用的标签映射。ID 是英文 token，发给后端 / Volcengine 时
+// 用 LABELS[id] 查表得到中文展示文本。GENRE_IDS / MOOD_IDS / INSTRUMENT_IDS / VOICE_IDS
+// 决定工坊页面渲染哪些按钮；INSTRUMENT 故意只 6 件（对齐 PRD §3.6 钢琴/吉他/鼓/小提琴/大提琴/长笛）。
+export const GENRE_IDS = [
+  'pop', 'rnb', 'hiphop', 'rap', 'rock', 'jazz', 'country', 'classic',
+] as const;
+export type GenreId = (typeof GENRE_IDS)[number];
+
+export const MOOD_IDS = [
+  'happy', 'sad', 'excited', 'relaxed', 'romantic',
+  'powerful', 'mysterious', 'nostalgic', 'playful', 'dreamy',
+] as const;
+export type MoodId = (typeof MOOD_IDS)[number];
+
+export const INSTRUMENT_IDS = [
+  'piano', 'guitar', 'drums', 'violin', 'cello', 'flute',
+] as const;
+export type InstrumentId = (typeof INSTRUMENT_IDS)[number];
+
+export const VOICE_IDS = ['female', 'male'] as const;
+export type VoiceId = (typeof VOICE_IDS)[number];
+
+export const GENRE_LABELS: Record<string, string> = {
+  pop: '流行', rnb: '节奏蓝调', hiphop: '嘻哈', rap: '说唱',
+  rock: '摇滚', jazz: '爵士', country: '乡村', classic: '古典',
+};
+export const MOOD_LABELS: Record<string, string> = {
+  happy: '开心', sad: '难过', excited: '兴奋', relaxed: '放松',
+  romantic: '浪漫', powerful: '有力量', mysterious: '神秘',
+  nostalgic: '怀念', playful: '俏皮', dreamy: '梦幻',
+};
+export const INSTRUMENT_LABELS: Record<InstrumentId, string> = {
+  piano: '钢琴', guitar: '吉他', drums: '鼓',
+  violin: '小提琴', cello: '大提琴', flute: '长笛',
+};
+export const VOICE_LABELS: Record<VoiceId, string> = {
+  female: '清亮女声', male: '温柔男声',
 };

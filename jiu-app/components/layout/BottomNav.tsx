@@ -4,9 +4,10 @@ import { usePathname } from 'next/navigation';
 
 const tabs = [
   { href: '/academy', label: '学院', icon: '🎓' },
-  { href: '/workshop', label: '工坊', icon: '🎨' },
+  { href: '/workshop', label: '工坊', icon: '🎵' },
   { href: '/community', label: '社区', icon: '🌟' },
   { href: '/collection', label: '图鉴', icon: '🐦' },
+  { href: '/me', label: '我', icon: '👤' },
 ];
 
 export function BottomNav() {
@@ -27,7 +28,7 @@ export function BottomNav() {
             }`}
           >
             <span className="text-xl">{tab.icon}</span>
-            <span className="text-[10px] mt-0.5">{tab.label}</span>
+            <span className="text-[11px] mt-0.5">{tab.label}</span>
           </Link>
         ))}
       </div>

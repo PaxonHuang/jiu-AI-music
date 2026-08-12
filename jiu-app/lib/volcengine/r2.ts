@@ -8,7 +8,7 @@ interface R2BucketLike {
 }
 
 interface R2Binding {
-  get(key: string): Promise<{ body?: ReadableStream; writeHttpMetadata?: (metadata: { contentType?: string }) => void; } | null>;
+  get(key: string): Promise<{ body?: ReadableStream; httpMetadata?: { contentType?: string } } | null>;
   put(key: string, value: ReadableStream | ArrayBuffer | string, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
 }
 
@@ -21,12 +21,24 @@ export async function persistAudioToR2(
     return { url: audioUrl, persisted: false };
   }
 
+  // Only remote URLs need copying. A provider may hand back an app-local path
+  // (the mock provider's sample asset does), which is already permanent and
+  // which fetch() would reject as an invalid URL.
+  if (!/^https?:\/\//i.test(audioUrl)) {
+    return { url: audioUrl, persisted: false };
+  }
+
+  const key = `${taskId}.wav`;
+  const existing = await bucket.get(key);
+  if (existing) {
+    return { url: `/api/music/audio/${encodeURIComponent(taskId)}`, persisted: true };
+  }
+
   const resp = await fetch(audioUrl);
   if (!resp.ok) {
     throw new Error(`Failed to download audio: ${resp.status} ${resp.statusText}`);
   }
 
-  const key = `music/${taskId}-${Date.now()}.wav`;
   const contentType = resp.headers.get('content-type') ?? 'audio/wav';
   await bucket.put(key, resp.body as ReadableStream, {
     httpMetadata: { contentType },
@@ -40,6 +52,7 @@ export function isR2Binding(value: unknown): value is R2Binding {
   return (
     typeof value === 'object' &&
     value !== null &&
-    typeof (value as R2BucketLike).put === 'function'
+    typeof (value as R2BucketLike).put === 'function' &&
+    typeof (value as R2Binding).get === 'function'
   );
 }

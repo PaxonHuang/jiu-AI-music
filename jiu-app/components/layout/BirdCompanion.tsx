@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePathname } from 'next/navigation';
 import { useGlobalStore } from '@/stores/globalStore';
 import { BIRDS } from '@/lib/constants';
 import { BirdPortrait } from '@/components/collection/BirdPortrait';
@@ -14,6 +15,7 @@ const QUICK_QUESTIONS = [
 ];
 
 export function BirdCompanion() {
+  const pathname = usePathname();
   const { currentBirdId } = useGlobalStore();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: string; text: string }[]>([]);
@@ -26,7 +28,7 @@ export function BirdCompanion() {
         '什么是音高？': '声音有高有低，就像楼梯一样。小鸟唱得高，大象叫得低！',
         '节拍是什么？': '就像你的心跳一样，咚、咚、咚，很稳定的节奏就是节拍！',
         'Do Re Mi 是什么？': '这是音乐的七个小伙伴中的前三个，就像 ABC 是字母歌的开头一样！',
-        '怎么创作音乐？': '去工坊录一段哼唱，再点"AI 帮帮忙"，我来帮你变成一首完整的歌！',
+        '怎么创作音乐？': '去工坊写下一句话，再选曲风和心情，我就能陪你把故事变成一首歌！',
         '鸟为什么会唱歌？': '鸟儿唱歌是为了和朋友聊天、标记领地，和你唱歌为了开心是一样的！',
       };
       setMessages((prev) => [
@@ -35,6 +37,8 @@ export function BirdCompanion() {
       ]);
     }, 800);
   };
+
+  if (pathname.startsWith('/workshop')) return null;
 
   return (
     <div className="fixed bottom-20 right-3 z-50">

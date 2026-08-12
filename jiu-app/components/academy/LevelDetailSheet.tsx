@@ -57,12 +57,13 @@ export function LevelDetailSheet({
         role="dialog"
         aria-modal="true"
         aria-label={`${level.name}关卡详情`}
-        initial={{ opacity: 0, y: 18, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.94 }}
-        transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+        initial={{ opacity: 0, y: '100%' }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: '100%' }}
+        transition={{ type: 'spring', stiffness: 320, damping: 30 }}
         onClick={(event) => event.stopPropagation()}
       >
+        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#D8CFC5]" aria-hidden="true" />
         <button
           type="button"
           className={styles.detailClose}

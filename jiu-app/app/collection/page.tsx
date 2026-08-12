@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BIRDS, Bird, CATEGORY_LABELS, FragmentType } from '@/lib/constants';
 import { useGlobalStore } from '@/stores/globalStore';
 import { BirdCard } from '@/components/collection/BirdCard';
 import { BirdDetail } from '@/components/collection/BirdDetail';
 import { BirdPortrait } from '@/components/collection/BirdPortrait';
+import { PageHeader } from '@/components/layout/PageHeader';
 import styles from './collection.module.css';
 
 const CATEGORIES = ['cute', 'abstract', 'mystery'] as const;
@@ -70,8 +71,53 @@ export default function CollectionPage() {
   const [showFragmentGuide, setShowFragmentGuide] = useState(false);
   const [activeCategory, setActiveCategory] =
     useState<(typeof CATEGORIES)[number]>('cute');
+  const categoryNavRef = useRef<HTMLElement | null>(null);
+  const categoryRefs = useRef<Record<(typeof CATEGORIES)[number], HTMLElement | null>>({
+    cute: null,
+    abstract: null,
+    mystery: null,
+  });
   const currentBird = BIRDS.find((bird) => bird.id === currentBirdId) ?? BIRDS[0];
   const discoveredCount = BIRDS.filter((bird) => unlockedBirds.includes(bird.id)).length;
+
+  useEffect(() => {
+    let frame = 0;
+    const syncActiveCategory = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const anchor = categoryNavRef.current?.getBoundingClientRect().bottom ?? 0;
+        let visibleCategory: (typeof CATEGORIES)[number] = CATEGORIES[0];
+        let largestVisibleArea = 0;
+
+        for (const category of CATEGORIES) {
+          const section = categoryRefs.current[category];
+          if (!section) continue;
+          const bounds = section.getBoundingClientRect();
+          const visibleArea = Math.max(
+            0,
+            Math.min(bounds.bottom, window.innerHeight) - Math.max(bounds.top, anchor),
+          );
+          if (visibleArea > largestVisibleArea) {
+            largestVisibleArea = visibleArea;
+            visibleCategory = category;
+          }
+        }
+
+        setActiveCategory((current) =>
+          current === visibleCategory ? current : visibleCategory,
+        );
+      });
+    };
+
+    syncActiveCategory();
+    window.addEventListener('scroll', syncActiveCategory, { passive: true });
+    window.addEventListener('resize', syncActiveCategory);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', syncActiveCategory);
+      window.removeEventListener('resize', syncActiveCategory);
+    };
+  }, []);
 
   const jumpToCategory = (category: (typeof CATEGORIES)[number]) => {
     setActiveCategory(category);
@@ -83,17 +129,16 @@ export default function CollectionPage() {
 
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <p className="text-[10px] font-bold tracking-[0.18em] text-[#A77950]">
-            JIU BIRD COLLECTION
-          </p>
-          <h1 className="text-[22px] font-black tracking-tight text-[#263746]">我的鸟库</h1>
-        </div>
-        <div className="rounded-full border border-[#E8D5C2] bg-white/75 px-3 py-1.5 text-xs font-extrabold text-[#795C44]">
-          已发现 <span className="text-[#E47A24]">{discoveredCount}</span> / {BIRDS.length}
-        </div>
-      </header>
+      <PageHeader
+        eyebrow="JIU BIRD COLLECTION"
+        title="我的鸟库"
+        subtitle="发现鸟儿，找到你的音乐伙伴"
+        right={
+          <div className="rounded-full border border-[#E8D5C2] bg-white/75 px-3 py-1.5 text-xs font-extrabold text-[#795C44]">
+            已发现 <span className="text-[#E47A24]">{discoveredCount}</span> / {BIRDS.length}
+          </div>
+        }
+      />
 
       <section className={styles.hero} aria-label="当前音乐伙伴">
         <div className={styles.heroGlowOne} />
@@ -115,12 +160,69 @@ export default function CollectionPage() {
           >
             认识我的伙伴
           </button>
+          {/* Discovery progress — visible feedback for the bird hunt. */}
+          {discoveredCount === 0 ? (
+            <Link
+              href="/academy"
+              className="mt-3 inline-flex min-h-9 items-center gap-1 rounded-full bg-white/85 px-4 text-[11px] font-extrabold text-[#52715E] shadow-sm ring-1 ring-[#52715E]/20"
+            >
+              去学院找第一只鸟 →
+            </Link>
+          ) : (
+            <div className="mt-3 flex items-center gap-2">
+              <div
+                className="relative h-7 w-7"
+                aria-hidden="true"
+                title={`已发现 ${discoveredCount}/${BIRDS.length} 只鸟`}
+              >
+                <svg viewBox="0 0 28 28" className="h-full w-full -rotate-90">
+                  <circle
+                    cx="14" cy="14" r="11"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.7)"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="14" cy="14" r="11"
+                    fill="none"
+                    stroke="#52715E"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(discoveredCount / BIRDS.length) * 69.115} 69.115`}
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-[#52715E]">
+                  {discoveredCount}
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-[#52715E]/85">
+                已发现 {discoveredCount} / {BIRDS.length} 只
+              </span>
+            </div>
+          )}
         </div>
         <BirdPortrait
           bird={currentBird}
           className="relative z-10 -mr-3 aspect-square w-[46%] max-w-[190px] self-end"
         />
       </section>
+
+      <nav ref={categoryNavRef} className={styles.categoryNav} aria-label="鸟类分类">
+        {CATEGORIES.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => jumpToCategory(category)}
+            className={`min-h-10 whitespace-nowrap rounded-full px-4 text-xs font-extrabold transition ${
+              activeCategory === category
+                ? 'bg-[#2C3E50] text-white shadow-md'
+                : 'bg-white/80 text-[#75685D]'
+            }`}
+          >
+            {CATEGORY_LABELS[category]}
+          </button>
+        ))}
+      </nav>
 
       <section className="px-4 pt-4" aria-labelledby="fragment-wallet-title">
         <div className="mb-2.5 flex items-center justify-between">
@@ -161,23 +263,6 @@ export default function CollectionPage() {
         </button>
       </section>
 
-      <nav className={styles.categoryNav} aria-label="鸟类分类">
-        {CATEGORIES.map((category) => (
-          <button
-            key={category}
-            type="button"
-            onClick={() => jumpToCategory(category)}
-            className={`min-h-10 whitespace-nowrap rounded-full px-4 text-xs font-extrabold transition ${
-              activeCategory === category
-                ? 'bg-[#2C3E50] text-white shadow-md'
-                : 'bg-white/80 text-[#75685D]'
-            }`}
-          >
-            {CATEGORY_LABELS[category]}
-          </button>
-        ))}
-      </nav>
-
       <div className="space-y-4 px-3 pb-10">
         {CATEGORIES.map((category) => {
           const birds = BIRDS.filter((bird) => bird.category === category);
@@ -188,6 +273,9 @@ export default function CollectionPage() {
             <section
               key={category}
               id={`collection-${category}`}
+              ref={(element) => {
+                categoryRefs.current[category] = element;
+              }}
               className={`${styles.categorySection} ${meta.className}`}
             >
               <div className={styles.categoryDecoration} aria-hidden="true" />

@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadCredentials } from '@/lib/volcengine/sign';
-import {
-  querySong,
-  VolcApiError,
-  STATUS_PENDING,
-  STATUS_RUNNING,
-  STATUS_SUCCESS,
-  STATUS_FAILED,
-} from '@/lib/volcengine/gensong';
+import { selectMusicProvider } from '@/lib/workshop/provider';
+import { MusicProviderError } from '@/lib/workshop/types';
 import { persistAudioToR2 } from '@/lib/volcengine/r2';
 
 export const runtime = 'nodejs';
@@ -35,9 +28,9 @@ export async function GET(
     );
   }
 
-  let credentials;
+  let provider;
   try {
-    credentials = loadCredentials();
+    provider = selectMusicProvider();
   } catch (err) {
     return NextResponse.json(
       {
@@ -50,17 +43,11 @@ export async function GET(
   }
 
   try {
-    const result = await querySong(taskId, credentials);
-    const statusMap: Record<number, string> = {
-      [STATUS_PENDING]: 'pending',
-      [STATUS_RUNNING]: 'running',
-      [STATUS_SUCCESS]: 'success',
-      [STATUS_FAILED]: 'failed',
-    };
+    const result = await provider.getTask(taskId);
 
-    let audioUrl: string | undefined;
+    let audioUrl = result.audioUrl;
     let persisted = false;
-    if (result.status === STATUS_SUCCESS && result.audioUrl) {
+    if (result.status === 'success' && result.audioUrl) {
       // Try to persist to R2 if the binding is configured. We resolve the
       // binding lazily so the route works in local dev without R2.
       let r2Bucket: unknown = undefined;
@@ -79,23 +66,22 @@ export async function GET(
       audioUrl = persistedAudio.url;
       persisted = persistedAudio.persisted;
     }
-    const failureReason =
-      result.status === STATUS_FAILED && result.failureReason
-        ? { code: result.failureReason.code, msg: result.failureReason.msg }
-        : null;
 
     return NextResponse.json({
       taskId: result.taskId,
-      status: statusMap[result.status] ?? 'unknown',
+      status: result.status,
       progress: result.progress,
       audioUrl,
       duration: result.duration,
       lyrics: result.lyrics,
-      failureReason,
+      failureReason: result.failure
+        ? { code: result.failure.code, msg: result.failure.message }
+        : null,
       persisted,
+      provider: provider.name,
     });
   } catch (err) {
-    if (err instanceof VolcApiError) {
+    if (err instanceof MusicProviderError) {
       return birdTired({ code: err.code, message: err.message, action: err.action });
     }
     return NextResponse.json(

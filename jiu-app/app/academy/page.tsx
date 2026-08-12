@@ -16,34 +16,21 @@ export default function AcademyPage() {
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <div className={styles.titleGroup}>
-            <span className={styles.titleIcon} aria-hidden="true">
-              🎓
-            </span>
             <div>
+              <span className={styles.eyebrow}>JIU MUSIC ACADEMY</span>
               <h1 className={styles.title}>音乐探索地图</h1>
-              <span className={styles.eyebrow}>从田野出发，一路唱进山林</span>
+              <p className={styles.subtitle}>从田野出发，一路唱进山林</p>
             </div>
           </div>
           <div className={styles.progressCount}>
-            <strong>{completedCount}</strong> / {LEVELS.length} 关
+            <span>已完成 </span><strong>{completedCount}</strong> / {LEVELS.length}
           </div>
-        </div>
-        <div
-          className={styles.progressTrack}
-          role="progressbar"
-          aria-label="学院关卡进度"
-          aria-valuemin={0}
-          aria-valuemax={LEVELS.length}
-          aria-valuenow={completedCount}
-        >
-          <div
-            className={styles.progressFill}
-            style={{ width: `${(completedCount / LEVELS.length) * 100}%` }}
-          />
         </div>
       </header>
 
-      <AcademyMap progress={academyProgress} />
+      <div className={styles.mapFrame}>
+        <AcademyMap progress={academyProgress} />
+      </div>
     </main>
   );
 }

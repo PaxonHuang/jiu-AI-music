@@ -60,9 +60,9 @@ test('VolcApiError carries actionable fields', () => {
 
 test('submitGenBGMForTime POSTs the verified payload shape', async () => {
   const original = globalThis.fetch;
-  let captured: { url: string; init: RequestInit } | null = null;
+  const calls: { url: string; init: RequestInit }[] = [];
   globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
-    captured = { url: String(url), init: init ?? {} };
+    calls.push({ url: String(url), init: init ?? {} });
     return new Response(
       JSON.stringify({
         Code: 0,
@@ -84,9 +84,9 @@ test('submitGenBGMForTime POSTs the verified payload shape', async () => {
   try {
     const result = await submitGenBGMForTime({ text: '欢快的鸟鸣' }, fakeCredentials);
     assert.equal(result.taskId, 'task-1');
-    assert.ok(captured);
-    assert.match(captured.url, /Action=GenBGMForTime/);
-    const body = JSON.parse(String(captured.init.body));
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /Action=GenBGMForTime/);
+    const body = JSON.parse(String(calls[0].init.body));
     assert.equal(body.Text, '欢快的鸟鸣');
     assert.equal(body.Version, 'v5.0');
   } finally {
@@ -117,6 +117,123 @@ test('querySong surfaces VolcApiError on non-zero Code', async () => {
     await assert.rejects(() => querySong('task-1', fakeCredentials), (err: unknown) => {
       return err instanceof VolcApiError && err.code === 50000001;
     });
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('submitGenSongForTime appends a Chinese instrument directive to Prompt', async () => {
+  const original = globalThis.fetch;
+  const calls: { url: string; init: RequestInit }[] = [];
+  globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
+    calls.push({ url: String(url), init: init ?? {} });
+    return new Response(
+      JSON.stringify({
+        Code: 0,
+        Message: 'success',
+        Result: { TaskID: 'task-2', PredictedWaitTime: 0 },
+        ResponseMetadata: {
+          RequestId: 'r-2',
+          Action: 'GenSongForTime',
+          Version: VOLC_VERSION,
+          Service: VOLC_SERVICE,
+          Region: VOLC_REGION,
+          Error: null,
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  }) as typeof fetch;
+
+  try {
+    await submitGenSongForTime(
+      {
+        lyrics: '主歌歌词',
+        prompt: '温暖的童歌',
+        genre: '流行',
+        mood: '开心',
+        instruments: ['钢琴', '吉他'],
+      },
+      fakeCredentials,
+    );
+    assert.equal(calls.length, 1);
+    const body = JSON.parse(String(calls[0].init.body));
+    assert.equal(body.Lyrics, '主歌歌词');
+    assert.equal(body.Prompt, undefined);
+    assert.equal(body.Genre, '流行');
+    assert.equal(body.Mood, '开心');
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('submitGenSongForTime leaves Prompt untouched when instruments is empty', async () => {
+  const original = globalThis.fetch;
+  const calls: { init: RequestInit }[] = [];
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    calls.push({ init: init ?? {} });
+    return new Response(
+      JSON.stringify({
+        Code: 0,
+        Message: 'success',
+        Result: { TaskID: 'task-3', PredictedWaitTime: 0 },
+        ResponseMetadata: {
+          RequestId: 'r-3',
+          Action: 'GenSongForTime',
+          Version: VOLC_VERSION,
+          Service: VOLC_SERVICE,
+          Region: VOLC_REGION,
+          Error: null,
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  }) as typeof fetch;
+
+  try {
+    await submitGenSongForTime(
+      { prompt: '安静的摇篮曲', instruments: [] },
+      fakeCredentials,
+    );
+    assert.equal(calls.length, 1);
+    const body = JSON.parse(String(calls[0].init.body));
+    assert.equal(body.Prompt, '安静的摇篮曲');
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('submitGenBGMForTime appends an instrument directive to Text', async () => {
+  const original = globalThis.fetch;
+  const calls: { init: RequestInit }[] = [];
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    calls.push({ init: init ?? {} });
+    return new Response(
+      JSON.stringify({
+        Code: 0,
+        Message: 'success',
+        Result: { TaskID: 'task-4', PredictedWaitTime: 0 },
+        ResponseMetadata: {
+          RequestId: 'r-4',
+          Action: 'GenBGMForTime',
+          Version: VOLC_VERSION,
+          Service: VOLC_SERVICE,
+          Region: VOLC_REGION,
+          Error: null,
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  }) as typeof fetch;
+
+  try {
+    await submitGenBGMForTime(
+      { text: '森林清晨', instruments: ['长笛', '钢琴'] },
+      fakeCredentials,
+    );
+    assert.equal(calls.length, 1);
+    const body = JSON.parse(String(calls[0].init.body));
+    assert.equal(body.Text, '森林清晨，主乐器：长笛、钢琴');
   } finally {
     globalThis.fetch = original;
   }
